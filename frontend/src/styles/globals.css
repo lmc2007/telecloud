@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* 123云盘风格设计令牌 */
+  --brand-blue: #1677FF;
+  --brand-blue-hover: #4096FF;
+  --brand-blue-active: #0958D9;
+  --brand-blue-light: #E8F3FF;
+  --brand-red: #F53F3F;
+  --brand-red-hover: #F76560;
+  --brand-green: #00B578;
+  --brand-orange: #FF8F1F;
+  --bg-primary: #F5F6F7;
+  --bg-secondary: #FAFBFC;
+  --bg-white: #FFFFFF;
+  --text-primary: #1F2329;
+  --text-secondary: #646A73;
+  --text-tertiary: #8F959E;
+  --text-disabled: #BCC0C6;
+  --border-light: #E5E6EB;
+  --border-default: #DCDEE0;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Microsoft YaHei", "Helvetica Neue", "Segoe UI", sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+::selection {
+  background: rgba(22, 119, 255, 0.15);
+  color: var(--text-primary);
+}
+
+/* ===== 123云盘风格组件类 ===== */
+@layer components {
+  /* 主按钮：蓝色实心 */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5
+      px-4 py-1.5 text-[13px] font-medium
+      text-white bg-[var(--brand-blue)]
+      rounded-md transition-all duration-150
+      hover:bg-[var(--brand-blue-hover)]
+      active:bg-[var(--brand-blue-active)]
+      active:scale-[0.98]
+      disabled:opacity-50 disabled:pointer-events-none
+      select-none;
+  }
+
+  /* 次要按钮：白色背景 + 边框 */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5
+      px-4 py-1.5 text-[13px] font-medium
+      text-[var(--text-primary)] bg-white
+      rounded-md transition-all duration-150
+      border border-[var(--border-default)]
+      hover:border-[var(--brand-blue)]
+      hover:text-[var(--brand-blue)]
+      active:scale-[0.98]
+      disabled:opacity-50 disabled:pointer-events-none
+      select-none;
+  }
+
+  /* 幽灵按钮：图标/文字按钮 */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center
+      p-1.5 rounded-md transition-colors duration-150
+      text-[var(--text-tertiary)]
+      hover:bg-black/[0.04] hover:text-[var(--text-primary)]
+      active:bg-black/[0.08]
+      select-none;
+  }
+
+  /* 危险按钮 */
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5
+      px-4 py-1.5 text-[13px] font-medium
+      text-white bg-[var(--brand-red)]
+      rounded-md transition-all duration-150
+      hover:bg-[var(--brand-red-hover)]
+      active:scale-[0.98]
+      disabled:opacity-50 disabled:pointer-events-none
+      select-none;
+  }
+
+  /* 标准输入框 */
+  .input-primary {
+    @apply w-full px-3 py-2 text-[13px]
+      bg-white rounded-md outline-none
+      transition-all duration-150
+      placeholder:text-[var(--text-disabled)];
+    border: 1px solid var(--border-default);
+  }
+  .input-primary:focus {
+    border-color: var(--brand-blue);
+    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+  }
+
+  /* 侧边栏导航项 */
+  .sidebar-nav-item {
+    @apply w-full flex items-center gap-2.5 px-4 py-2 text-[13px]
+      transition-colors duration-100 cursor-pointer select-none
+      text-[var(--text-secondary)] hover:bg-[rgba(0,0,0,0.03)]
+      hover:text-[var(--text-primary)];
+    border-left: 3px solid transparent;
+  }
+  .sidebar-nav-item.active {
+    @apply text-[var(--brand-blue)] font-medium;
+    background: rgba(22, 119, 255, 0.06);
+    border-left-color: var(--brand-blue);
+  }
+
+  /* 表格 */
+  .data-table {
+    @apply w-full text-[13px];
+  }
+  .data-table thead {
+    @apply sticky top-0 z-10;
+    background: var(--bg-secondary);
+  }
+  .data-table th {
+    @apply text-left px-4 py-2.5 text-[12px] font-medium
+      text-[var(--text-secondary)] cursor-pointer
+      hover:text-[var(--text-primary)] select-none
+      border-b border-[var(--border-light)];
+  }
+  .data-table td {
+    @apply px-4 py-[9px] border-b border-[rgba(0,0,0,0.04)];
+  }
+  .data-table tbody tr {
+    @apply transition-colors duration-75;
+    background: var(--bg-white);
+  }
+  .data-table tbody tr:nth-child(even) {
+    background: var(--bg-secondary);
+  }
+  .data-table tbody tr:hover {
+    background: rgba(22, 119, 255, 0.04);
+  }
+  .data-table tbody tr.selected {
+    background: rgba(22, 119, 255, 0.08);
+  }
+
+  /* 卡片 */
+  .card {
+    @apply bg-white rounded-lg border border-[var(--border-light)]
+      transition-all duration-150;
+  }
+  .card-hover:hover {
+    @apply border-[var(--border-default)];
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  /* 模态框 */
+  .modal-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center;
+    background: rgba(0, 0, 0, 0.3);
+  }
+  .modal-panel {
+    @apply relative bg-white rounded-lg shadow-lg
+      border border-[var(--border-light)] overflow-hidden;
+  }
+
+  /* 标签页 */
+  .tab-item {
+    @apply px-4 py-2.5 text-[13px] transition-colors
+      text-[var(--text-secondary)] cursor-pointer select-none
+      border-b-2 border-transparent;
+  }
+  .tab-item.active {
+    @apply text-[var(--brand-blue)] font-medium;
+    border-bottom-color: var(--brand-blue);
+  }
+}
