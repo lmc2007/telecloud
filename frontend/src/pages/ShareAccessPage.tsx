@@ -8,6 +8,7 @@ import { ContextMenu } from "../components/ContextMenu";
 import { PreviewModal } from "../components/PreviewModal";
 import { API_BASE, api, getShareStreamUrl } from "../lib/api";
 import { fmtSize, isPreviewable } from "../lib/utils";
+import { useIsMobile } from "../hooks/useIsMobile";
 import type { FileItem } from "../stores/fileStore";
 import type { ViewMode } from "../types/ui";
 
@@ -79,6 +80,7 @@ export function ShareAccessPage() {
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [ctx, setCtx] = useState<{ item: FileItem; x: number; y: number } | null>(null);
+  const isMobile = useIsMobile();
   const pwRef = useRef(password);
   pwRef.current = password;
 
@@ -260,6 +262,168 @@ export function ShareAccessPage() {
     );
   }
 
+  // ===== MOBILE UI =====
+  if (isMobile) {
+    return (
+      <div className="h-screen flex flex-col bg-[var(--bg-primary)]">
+        {/* Mobile Header */}
+        <header className="h-12 flex items-center px-4 flex-shrink-0 z-30"
+          style={{ background: 'rgba(245,245,247,0.8)', backdropFilter: 'blur(20px)', borderBottom: '0.5px solid rgba(0,0,0,0.08)' }}>
+          <button onClick={() => navigate("/app")} className="flex items-center gap-2 cursor-pointer">
+            <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0071E3, #5AC8FA)' }}>
+              <Cloud className="w-3.5 h-3.5 text-white" strokeWidth={2} />
+            </div>
+            <span className="text-[14px] font-semibold text-[var(--text-primary)]">分享的文件</span>
+          </button>
+        </header>
+
+        {data?.need_password ? (
+          <div className="flex-1 flex items-center justify-center px-4">
+            <motion.div className="card p-6 w-full max-w-sm" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <div className="flex flex-col items-center gap-4">
+                <Lock className="w-10 h-10 text-[var(--text-tertiary)]" />
+                <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">此分享需要提取码</h2>
+                <input type="text" value={password} onChange={e => setPassword(e.target.value)} placeholder="请输入提取码" className="input-primary text-center" onKeyDown={e => e.key === "Enter" && handlePassword()} />
+                {pwError && <p className="text-[12px] text-[var(--brand-red)]">{pwError}</p>}
+                <button onClick={handlePassword} className="btn-primary w-full py-2.5">确认</button>
+              </div>
+            </motion.div>
+          </div>
+        ) : files.length > 0 ? (
+          <>
+            {/* Breadcrumbs */}
+            {isFolderShare && breadcrumbs.length > 0 && (
+              <div className="h-10 flex items-center px-4 overflow-x-auto flex-shrink-0"
+                style={{ background: 'rgba(245,245,247,0.7)', backdropFilter: 'blur(12px)', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
+                <div className="flex items-center gap-1 text-[12px] whitespace-nowrap">
+                  {breadcrumbs.map((b, i) => (
+                    <span key={b.id} className="flex items-center gap-1">
+                      {i > 0 && <ChevronRight className="w-3 h-3 text-[var(--text-disabled)]" />}
+                      <button onClick={() => handleBreadcrumbClick(b.id)}
+                        className={`px-1 rounded ${i === breadcrumbs.length - 1 ? "font-medium text-[var(--text-primary)]" : "text-[var(--text-tertiary)]"}`}>{b.name}</button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Action bar */}
+            <div className="flex items-center justify-between px-4 py-2 flex-shrink-0" style={{ borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
+              <div className="flex bg-[rgba(0,0,0,0.04)] rounded-full p-0.5">
+                {[{ m: "list" as ViewMode, ico: List }, { m: "grid" as ViewMode, ico: LayoutGrid }].map(({ m, ico: Icon }) => (
+                  <button key={m} onClick={() => setViewMode(m)} className={`p-1.5 rounded-full transition-colors ${viewMode === m ? "bg-white shadow-sm text-[var(--text-primary)]" : "text-[var(--text-tertiary)]"}`}><Icon className="w-3.5 h-3.5" /></button>
+                ))}
+              </div>
+              <span className="text-[11px] text-[var(--text-tertiary)]">{files.length} 项{fileOnlyTotal > 0 ? ` · ${fmtSize(fileOnlyTotal)}` : ""}</span>
+              {files.filter(f => f.type !== "folder").length > 1 && (
+                <button onClick={handleDownloadAll} disabled={downloadingAll}
+                  className="btn-primary text-[12px] px-3 py-1">
+                  <Archive className="w-3 h-3" />全部下载
+                </button>
+              )}
+            </div>
+
+            {/* Download progress */}
+            <AnimatePresence>
+              {downloadingAll && (
+                <motion.div className="px-4 py-1.5 flex-shrink-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <div className="flex items-center justify-between text-[10px] text-[var(--text-secondary)] mb-1">
+                    <span className="truncate">{allProgress.fileName}</span>
+                    <span>{allProgress.current}/{allProgress.total}</span>
+                  </div>
+                  <div className="h-1.5 bg-[var(--border-light)] rounded-full overflow-hidden">
+                    <div className="h-full bg-[var(--brand-blue)] rounded-full transition-all duration-300" style={{ width: `${Math.max(allProgress.percent, 3)}%` }} />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* File list */}
+            <div className="flex-1 overflow-y-auto">
+              {viewMode === "list" ? (
+                <div className="px-3 py-2 space-y-1">
+                  {files.map((f, i) => {
+                    const isFile = f.type !== "folder";
+                    const item = fileItems[i];
+                    return (
+                      <div key={f.index}
+                        className="flex items-center gap-3 px-3 py-2.5 bg-[var(--bg-card)] rounded-xl transition-all cursor-pointer active:scale-[0.98]"
+                        onClick={() => isFile ? handleDownload(f) : handleNavigateFolder(f.id)}
+                        onContextMenu={e => { e.preventDefault(); setCtx({ item, x: e.clientX, y: e.clientY }); }}>
+                        <FileIcon item={item} />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[13px] font-medium text-[var(--text-primary)] truncate block">{f.name}</span>
+                          <span className="text-[11px] text-[var(--text-tertiary)]">
+                            {isFile ? `${fmtSize(f.size)}` : "文件夹"}
+                          </span>
+                        </div>
+                        {isFile && (
+                          <button onClick={e => { e.stopPropagation(); handleDownload(f); }}
+                            className="btn-primary text-[11px] px-2.5 py-1 flex-shrink-0">
+                            <Download className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-3 grid grid-cols-3 gap-2.5">
+                  {files.map((f, i) => {
+                    const isFile = f.type !== "folder";
+                    const item = fileItems[i];
+                    return (
+                      <div key={f.index}
+                        className="card p-2.5 cursor-pointer active:scale-[0.97] transition-all"
+                        onClick={() => isFile ? handleDownload(f) : handleNavigateFolder(f.id)}
+                        onContextMenu={e => { e.preventDefault(); setCtx({ item, x: e.clientX, y: e.clientY }); }}>
+                        <LargeIcon item={item} />
+                        <p className="text-[11px] font-medium text-[var(--text-primary)] truncate mt-1.5 text-center">{f.name}</p>
+                        <p className="text-[10px] text-[var(--text-tertiary)] text-center">{isFile ? fmtSize(f.size) : "文件夹"}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="card p-8 text-center">
+              <Folder className="w-10 h-10 text-[var(--text-disabled)] mx-auto mb-3" />
+              <p className="text-[var(--text-tertiary)]">{pwError || "分享不存在或已过期"}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Context menu */}
+        <AnimatePresence>
+          {ctx && (
+            <div className="fixed inset-0 z-[99]" onClick={() => setCtx(null)}>
+              <div style={{ position: "fixed", left: Math.min(ctx.x, window.innerWidth - 170), top: Math.min(ctx.y, window.innerHeight - 150) }}>
+                <ContextMenu item={ctx.item} onClose={() => setCtx(null)}
+                  onShare={() => setCtx(null)}
+                  onRename={() => setCtx(null)}
+                  onDownload={() => { const sf = files.find(f => (f.id || f.name) === ctx.item.id); if (sf) handleDownload(sf); setCtx(null); }}
+                  onMove={() => setCtx(null)}
+                  onDelete={() => setCtx(null)}
+                  onPreview={isPreviewable(ctx.item) ? () => { setPreviewFile(ctx.item); setCtx(null); } : undefined} />
+              </div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Preview modal */}
+        <AnimatePresence>
+          {previewFile && (
+            <PreviewModal key={previewFile.id} item={previewFile} files={fileItems} onClose={() => setPreviewFile(null)} />
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // ===== DESKTOP UI =====
   return (
     <div className="h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
       {/* Header */}
