@@ -136,9 +136,8 @@ cp worker/wrangler.example.jsonc worker/wrangler.jsonc
 
 编辑 `worker/wrangler.jsonc`，把两处占位符换成你在第二步创建的 KV 和 D1 ID。这个文件仅在使用 `wrangler deploy` 命令行部署时需要，Dashboard 手动部署可跳过。
 
-> 以上 `.example` 文件是 Git 仓库的一部分，`wrangler.jsonc` 和 `.env` 已加入 `.gitignore`，不会被提交到 GitHub——这样你的密钥不会泄露。
 
----
+
 
 ### 第二步：创建 Cloudflare 资源
 
