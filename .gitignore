@@ -8,5 +8,4 @@ dist/
 .reasonix/
 reasonix.toml
 .reasonix
-AGENTS.md
 wrangler.jsonc
