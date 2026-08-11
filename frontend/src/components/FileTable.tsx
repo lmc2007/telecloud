@@ -32,7 +32,7 @@ export function FileTable({ files, sortKey, sortDir, onSort, onNavigate, onConte
         <tr>
           <th className="w-[40px] px-3">
             <input type="checkbox" checked={allSelected} onChange={e => onSelectAll(e.target.checked)}
-              className="w-3.5 h-3.5 rounded accent-[var(--brand-blue)]" />
+              className="w-3.5 h-3.5 rounded accent-[#0071E3]" />
           </th>
           {columns.map(c => (
             <th key={c.key} onClick={() => onSort(c.key)}>
@@ -56,7 +56,7 @@ export function FileTable({ files, sortKey, sortDir, onSort, onNavigate, onConte
             onContextMenu={e => { e.preventDefault(); onContextMenu(item, e.clientX, e.clientY); }}>
             <td className="px-3" onClick={e => e.stopPropagation()}>
               <input type="checkbox" checked={selected.has(item.id)} onChange={e => onSelect(item.id, e.target.checked)}
-                className="w-3.5 h-3.5 rounded accent-[var(--brand-blue)]" />
+                className="w-3.5 h-3.5 rounded accent-[#0071E3]" />
             </td>
             <td>
               <div className="flex items-center gap-2.5 min-w-0">

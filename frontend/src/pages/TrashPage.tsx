@@ -19,7 +19,7 @@ export function TrashPage() {
       ) : (
         <div className="space-y-1">
           {trashFiles.map(f => (
-            <div key={f.id} className="flex items-center gap-3 px-3 py-2 bg-white rounded-md border border-[var(--border-light)]">
+            <div key={f.id} className="flex items-center gap-3 px-3 py-2 bg-[var(--bg-card)] rounded-md border border-[var(--border-light)]">
               <FileIcon item={f} />
               <span className="flex-1 text-[13px] truncate text-[var(--text-primary)]">{f.name}</span>
               <span className="text-[11px] text-[var(--text-tertiary)]">{fmtSize(f.size)}</span>

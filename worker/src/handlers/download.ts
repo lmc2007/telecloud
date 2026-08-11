@@ -95,7 +95,17 @@ async function streamMergedDownload(
   const chunks = meta.chunks!;
   const totalSize = meta.size;
   let subReqCount = 0;
-  const trackSubReq = () => { subReqCount++; };
+  // Cloudflare Free caps subrequests at 50/invocation. Track and fail early
+  // with a clear error instead of letting the runtime abort mid-stream
+  // (which silently corrupts the download). 45 leaves margin for the
+  // record-recovery getFile path.
+  const MAX_SUBREQ = 45;
+  const trackSubReq = () => {
+    subReqCount++;
+    if (subReqCount > MAX_SUBREQ) {
+      throw new Error(`Too many subrequests (${subReqCount} > ${MAX_SUBREQ}); file too large for the Cloudflare Free plan (max ~${Math.floor(MAX_SUBREQ / 2)} chunks)`);
+    }
+  };
 
   // Fix legacy chunks where size is 0 (upload didn't record per-chunk size).
   // Estimate so the range→chunk-index calculation below works correctly.
@@ -193,9 +203,10 @@ async function streamMergedDownload(
     throw new Error(`Chunk ${chunk.index}: exhausted retries resolving file_path`);
   };
   
-  // Concurrent slot pattern: max 10 parallel getFile calls to avoid exceeding
-  // Cloudflare's 50 subrequest limit, while keeping smaller files fast.
-  const MAX_CONCURRENT_RESOLVE = 10;
+  // Concurrent slot pattern: max 6 parallel getFile calls.
+  // Cloudflare allows only 6 concurrent outbound connections per request
+  // (7th+ wait for a response header, throttling throughput) — 10 exceeded it.
+  const MAX_CONCURRENT_RESOLVE = 6;
   const LAZY_THRESHOLD = 20; // switch to lazy per-chunk resolution if >20 chunks
   const chunkPaths: { filePath: string; size: number; index: number }[] = [];
   
@@ -235,6 +246,11 @@ async function streamMergedDownload(
   // Memory-safe: never loads an entire chunk into memory at once.
   let bytesSent = 0;
   let currentChunkIdx = 0;
+  // Precompute cumulative byte offset up to the first needed chunk ONCE,
+  // then increment per-chunk inside pull() — avoids re-summing on every pull
+  // (O(n²) on large files, a CPU-time risk under the Free 10ms limit).
+  let cumulativeOffset = 0;
+  for (let i = 0; i < startChunkIdx; i++) cumulativeOffset += chunks[i].size;
 
   const stream = new ReadableStream({
     async pull(controller) {
@@ -289,9 +305,8 @@ async function streamMergedDownload(
 
       const reader = response.body.getReader();
 
-      // Calculate Range trimming for first chunk
-      const chunkByteStart = chunks.slice(0, startChunkIdx + currentChunkIdx)
-        .reduce((sum, c) => sum + c.size, 0);
+      // Calculate Range trimming for first chunk (incremental offset)
+      const chunkByteStart = cumulativeOffset;
       const actualSkip = Math.max(0, rangeStart - chunkByteStart);
       const remainingTotal = contentLength - bytesSent;
 
@@ -336,6 +351,9 @@ async function streamMergedDownload(
       }
 
       currentChunkIdx++;
+      // Advance cumulative offset for the next pull (chunk we just finished)
+      const cpSize = cp.size || 0;
+      if (cpSize > 0) cumulativeOffset += cpSize;
       
       // Wait for next chunk's file_path prefetch to settle (lazy mode only)
       if (prefetchPromise) await prefetchPromise;

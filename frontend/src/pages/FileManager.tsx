@@ -29,6 +29,8 @@ import { TrashPage } from "./TrashPage";
 import { SharesPage } from "./SharesPage";
 import { ShareAccessPage } from "./ShareAccessPage";
 import { isPreviewable } from "../lib/utils";
+import { MCProgressBar } from "../components/MCProgressBar";
+import { ThemeToggle } from "../components/ThemeToggle";
 import type { PageView, ViewMode, SortKey, SortDir } from "../types/ui";
 
 export type { PageView, ViewMode, SortKey, SortDir };
@@ -59,6 +61,7 @@ export function FileManager() {
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [downloadingMulti, setDownloadingMulti] = useState(false);
   const [multiProgress, setMultiProgress] = useState({ current: 0, total: 0, fileName: "", percent: 0 });
+  const [confirmDelete, setConfirmDelete] = useState<{ ids: string[]; name: string; all?: boolean } | null>(null);
   const st = useRef<ReturnType<typeof setTimeout>>();
   const isMobile = useIsMobile();
 
@@ -73,6 +76,33 @@ export function FileManager() {
     window.addEventListener("tcd:preview-navigate", handler);
     return () => window.removeEventListener("tcd:preview-navigate", handler);
   }, []);
+
+  // Keyboard shortcuts: Cmd/Ctrl+A 全选, Delete 删除
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const inInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+      if (inInput) return;
+
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+        if (currentPage !== "trash" && currentPage !== "shares" && files.length > 0) {
+          e.preventDefault();
+          setSelected(new Set(files.map(f => f.id)));
+        }
+      } else if (e.key === "Delete" && selected.size > 0) {
+        e.preventDefault();
+        const first = [...selected][0];
+        const firstItem = files.find(f => f.id === first);
+        setConfirmDelete({ ids: [...selected], name: selected.size > 1 ? "" : (firstItem?.name || "") });
+      } else if (e.key === "Escape") {
+        setSelected(new Set());
+        setCtx(null);
+        setPreviewFile(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [currentPage, files, selected]);
 
   const handleLogout = async () => {
     try { await fetch(`${API_BASE}/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } }); } catch {}
@@ -91,7 +121,7 @@ export function FileManager() {
   const handleCreateFolder = async (e: React.FormEvent) => { e.preventDefault(); if (!folderName.trim()) return; try { await createFolder(folderName.trim()); setFolderName(""); setShowNewFolder(false); } catch {} };
 
   // Shared: download a single file and return its Blob
-  const downloadFileBlob = async (item: FileItem, onChunk?: (done: number, total: number) => void): Promise<Blob> => {
+  const downloadFileBlob = async (item: FileItem, onChunk?: (done: number, total: number, downloadedBytes: number, totalBytes: number) => void): Promise<Blob> => {
     if (!item.is_chunks) {
       const res = await api.rawFetch(`/files/${item.id}/download`);
       if (!res.ok) throw new Error(`下载失败 HTTP ${res.status}`);
@@ -112,7 +142,19 @@ export function FileManager() {
         try {
           const r = await api.rawFetch(`/files/${item.id}/chunk/${i}`);
           if (!r.ok) throw new Error(`chunk ${i} HTTP ${r.status}`);
-          return await r.blob();
+          const blob = await r.blob();
+          // Integrity check: a truncated CDN stream would silently corrupt the
+          // final file — fail loudly instead so the client retries or errors out.
+          const expected = chunks[i]?.size;
+          if (expected > 0 && blob.size !== expected) {
+            throw new Error(`chunk ${i} 不完整: 期望 ${expected} 字节, 实际 ${blob.size} 字节`);
+          }
+          // Legacy uploads may have size=0 in metadata — we can't verify the
+          // exact size, but an empty body is always wrong.
+          if ((!expected || expected === 0) && blob.size === 0) {
+            throw new Error(`chunk ${i} 为空（未收到数据）`);
+          }
+          return blob;
         } catch (e) {
           if (attempt === retries) throw e;
           const delay = 1000 * Math.pow(2, attempt) + Math.random() * 500;
@@ -121,22 +163,37 @@ export function FileManager() {
       }
       throw new Error("unreachable");
     };
+    let downloadedBytes = 0;
     for (let i = 0; i < chunks.length; i++) {
       chunkBlobs[i] = await fetchChunk(i);
-      if (onChunk) onChunk(i + 1, chunks.length);
+      downloadedBytes += chunkBlobs[i].size;
+      if (onChunk) onChunk(i + 1, chunks.length, downloadedBytes, item.size);
       if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 200));
     }
-    return new Blob(chunkBlobs);
+    const blob = new Blob(chunkBlobs);
+    // Final guard: assembled size must match the file metadata.
+    if (blob.size !== item.size) {
+      throw new Error(`文件不完整: 期望 ${item.size} 字节, 实际 ${blob.size} 字节`);
+    }
+    return blob;
   };
 
   const handleDownload = async (item: FileItem) => {
+    // Proactively refresh token for long downloads (200+ chunks ≈ 4 min)
+    const rt = localStorage.getItem("tcd_refresh_token");
+    if (rt) { try { await fetch(`${API_BASE}/auth/refresh`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refresh_token: rt }) }); } catch {} }
+    
     const tid = crypto.randomUUID();
     const ac = new AbortController();
     addTransfer({ id: tid, type: "download", fileName: item.name, fileSize: item.size, progress: 0, status: "pending", speed: 0, abortController: ac });
     try {
       updateTransfer(tid, { status: "transferring" });
-      const blob = await downloadFileBlob(item, (done, total) => {
-        updateTransfer(tid, { chunksDone: done, progress: Math.round((done / total) * 100) });
+      const blob = await downloadFileBlob(item, (done, total, downloadedBytes, totalBytes) => {
+        updateTransfer(tid, {
+          downloadedBytes,
+          chunksDone: done,
+          progress: totalBytes > 0 ? Math.round((downloadedBytes / totalBytes) * 100) : Math.round((done / total) * 100),
+        });
       });
       const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = item.name; a.click(); URL.revokeObjectURL(url);
       updateTransfer(tid, { status: "done", progress: 100 });
@@ -218,7 +275,10 @@ export function FileManager() {
   };
 
   const handleDeleteSelected = async () => {
-    const ids = [...selected];
+    setConfirmDelete({ ids: [...selected], name: selected.size > 1 ? `${selected.size} 个项目` : "", all: true });
+  };
+
+  const doDelete = async (ids: string[]) => {
     for (const id of ids) {
       try { await deleteFile(id); } catch {}
     }
@@ -226,8 +286,16 @@ export function FileManager() {
   };
 
   const handleShareSelected = () => {
-    const items = filteredFiles.filter(f => selected.has(f.id) && f.type === "file");
-    if (items.length > 0) { setShareFiles(items); setCtx(null); }
+    const items = filteredFiles.filter(f => selected.has(f.id));
+    if (items.length === 0) return;
+    // Single folder → folder share; multi-select or file(s) → only files
+    if (items.length === 1 && items[0].type === "folder") {
+      setShareFiles(items);
+    } else {
+      const fileItems = items.filter(f => f.type === "file");
+      if (fileItems.length > 0) setShareFiles(fileItems);
+    }
+    setCtx(null);
   };
 
   const handleMoveSelected = () => {
@@ -238,17 +306,21 @@ export function FileManager() {
   // ===== MOBILE UI (unchanged rendering style, only color tokens update) =====
   if (isMobile) {
     return (
-      <div className="h-screen flex flex-col bg-[var(--bg-primary)]">
+      <div className="h-screen flex flex-col bg-[#F5F5F7]">
         {/* Mobile Header */}
-        <header className="h-12 flex items-center justify-between px-4 bg-white border-b border-[var(--border-light)] flex-shrink-0 z-30">
+        <header className="h-12 flex items-center justify-between px-4 flex-shrink-0 z-30"
+          style={{ background: 'rgba(245,245,247,0.8)', backdropFilter: 'blur(20px)', borderBottom: '0.5px solid rgba(0,0,0,0.08)' }}>
           <div className="flex items-center gap-2">
-            <Cloud className="w-5 h-5 text-[var(--brand-blue)]" /><span className="text-[14px] font-semibold text-[var(--text-primary)]">Cloud Nine</span>
+            <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0071E3, #5AC8FA)' }}>
+              <Cloud className="w-3.5 h-3.5 text-white" strokeWidth={2} />
+            </div>
+            <span className="text-[14px] font-semibold text-[#1D1D1F]">Cloud Nine</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+              <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-[#86868B]" />
               <input value={searchQuery} onChange={e => handleSearch(e.target.value)} placeholder="搜索..."
-                className="pl-7 pr-2 py-1 text-[12px] bg-[var(--bg-secondary)] rounded-md outline-none w-28 focus:w-36 transition-all border border-transparent focus:border-[var(--brand-blue)]" />
+                className="pl-7 pr-2 py-1 text-[12px] bg-[rgba(0,0,0,0.03)] rounded-md outline-none w-28 focus:w-36 transition-all border border-transparent focus:border-[var(--brand-blue)]" />
             </div>
             <button onClick={() => setShowSettings(true)} className="btn-ghost"><Settings className="w-4 h-4" /></button>
             <button onClick={handleLogout} className="btn-ghost"><LogOut className="w-4 h-4" /></button>
@@ -261,23 +333,24 @@ export function FileManager() {
            currentPage === "shares" ? <SharesPage /> :
            <>
              {/* Breadcrumb */}
-             <div className="h-10 flex items-center px-4 border-b border-[var(--border-light)] bg-white overflow-x-auto">
+             <div className="h-10 flex items-center px-4 overflow-x-auto"
+               style={{ background: 'rgba(245,245,247,0.7)', backdropFilter: 'blur(12px)', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
                <div className="flex items-center gap-1 text-[12px] whitespace-nowrap">
                  {breadcrumbs.map((b, i) => (
                    <span key={b.id ?? "root"} className="flex items-center gap-1">
                      {i > 0 && <ChevronRight className="w-3 h-3 text-[var(--text-disabled)]" />}
                      <button onClick={() => { navigateTo(b.id, b.name); setCurrentPage("files"); }}
-                       className={`px-1 rounded ${i === breadcrumbs.length - 1 ? "font-medium text-[var(--text-primary)]" : "text-[var(--text-tertiary)]"}`}>{b.name}</button>
+                       className={`px-1 rounded ${i === breadcrumbs.length - 1 ? "font-medium text-[#1D1D1F]" : "text-[#86868B]"}`}>{b.name}</button>
                    </span>
                  ))}
                </div>
              </div>
 
              {/* Action bar */}
-             <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-[var(--border-light)]">
-               <div className="flex bg-[var(--bg-secondary)] rounded-md p-0.5">
+             <div className="flex items-center justify-between px-4 py-2" style={{ borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
+               <div className="flex bg-[rgba(0,0,0,0.04)] rounded-full p-0.5">
                  {[{ m: "list" as ViewMode, ico: List }, { m: "grid" as ViewMode, ico: LayoutGrid }].map(({ m, ico: Icon }) => (
-                   <button key={m} onClick={() => setViewMode(m)} className={`p-1 rounded ${viewMode === m ? "bg-white shadow-sm text-[var(--text-primary)]" : "text-[var(--text-tertiary)]"}`}><Icon className="w-3.5 h-3.5" /></button>
+                   <button key={m} onClick={() => setViewMode(m)} className={`p-1.5 rounded-full transition-colors ${viewMode === m ? "bg-white shadow-sm text-[#1D1D1F]" : "text-[#AEAEB2]"}`}><Icon className="w-3.5 h-3.5" /></button>
                  ))}
                </div>
                <div className="flex items-center gap-1.5">
@@ -287,15 +360,15 @@ export function FileManager() {
              </div>
 
              {/* File list */}
-             {isLoading ? <div className="p-4 space-y-2">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-14 bg-[var(--bg-secondary)] rounded-md animate-pulse" />)}</div> :
-              filteredFiles.length === 0 ? <div className="flex flex-col items-center justify-center py-20"><Folder className="w-12 h-12 text-[var(--text-disabled)] mb-3" /><p className="text-[var(--text-tertiary)] text-[14px]">没有文件</p></div> :
+             {isLoading ? <div className="p-6 space-y-2">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-[42px] bg-[rgba(0,0,0,0.03)] rounded-xl animate-pulse" />)}</div> :
+              filteredFiles.length === 0 ? <div className="flex flex-col items-center justify-center py-24"><Cloud className="w-16 h-16 text-[#D1D1D6] mb-4 opacity-50" strokeWidth={1} /><p className="text-[#AEAEB2] text-[15px]">将文件拖到这里</p><p className="text-[#D1D1D6] text-[13px] mt-1">或点击右上角上传</p></div> :
               viewMode === "list" ? (
                 <div className="px-3 py-2 space-y-1">
                   {filteredFiles.map(item => {
                     const isSel = selected.has(item.id);
                     return (
                     <div key={item.id}
-                      className={`flex items-center gap-3 px-3 py-2.5 bg-white rounded-md border transition-all cursor-pointer ${isSel ? "border-[var(--brand-blue)] bg-[var(--brand-blue-light)]" : "border-[var(--border-light)] active:scale-[0.98]"}`}
+                      className={`flex items-center gap-3 px-3 py-2.5 bg-white rounded-xl transition-all cursor-pointer ${isSel ? "bg-[#0071E3]/8 ring-2 ring-[#0071E3]/20" : "hover:bg-[rgba(0,0,0,0.02)]"}`}
                       onClick={() => item.type === "folder" ? navigateTo(item.id, item.name) : undefined}
                       onContextMenu={e => { e.preventDefault(); setCtx({ item, x: e.clientX, y: e.clientY }); }}>
                       <input type="checkbox" checked={isSel} onChange={e => handleSelect(item.id, e.target.checked)}
@@ -303,8 +376,8 @@ export function FileManager() {
                         className="w-3.5 h-3.5 rounded border-[var(--border-default)] text-[var(--brand-blue)] cursor-pointer flex-shrink-0" />
                       <FileIcon item={item} />
                       <div className="flex-1 min-w-0">
-                        <span className="text-[13px] font-medium text-[var(--text-primary)] truncate block">{item.name}</span>
-                        <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
+                        <span className="text-[13px] font-medium text-[#1D1D1F] truncate block">{item.name}</span>
+                        <p className="text-[11px] text-[#86868B] mt-0.5">
                           {kindLabel(item)}{item.type === "file" && ` · ${fmtSize(item.size)}`} · {fmtDate(item.updated_at || item.created_at)}
                         </p>
                       </div>
@@ -328,8 +401,8 @@ export function FileManager() {
                           className={`w-3 h-3 rounded border-[var(--border-default)] text-[var(--brand-blue)] cursor-pointer ${isSel ? "" : "opacity-0"}`} />
                       </div>
                       <div className="flex justify-center py-1.5"><LargeIcon item={item} /></div>
-                      <p className="text-[11px] font-medium text-[var(--text-primary)] truncate text-center mt-1">{item.name}</p>
-                      <p className="text-[10px] text-[var(--text-tertiary)] text-center">{item.type === "folder" ? "文件夹" : fmtSize(item.size)}</p>
+                      <p className="text-[11px] font-medium text-[#1D1D1F] truncate text-center mt-1">{item.name}</p>
+                      <p className="text-[10px] text-[#86868B] text-center">{item.type === "folder" ? "文件夹" : fmtSize(item.size)}</p>
                     </div>
                     );
                   })}
@@ -339,8 +412,8 @@ export function FileManager() {
 
           {/* Status bar */}
           {currentPage !== "trash" && currentPage !== "shares" && (
-            <div className="h-7 flex items-center px-4 bg-[var(--bg-secondary)] border-t border-[var(--border-light)]">
-              <span className="text-[11px] text-[var(--text-tertiary)]">
+            <div className="h-7 flex items-center px-4 bg-[rgba(0,0,0,0.03)] border-t border-[var(--border-light)]">
+              <span className="text-[11px] text-[#86868B]">
                 {selected.size > 0 ? `已选择 ${selected.size} 项` : `${filteredFiles.length} 个项目`}
               </span>
             </div>
@@ -349,9 +422,9 @@ export function FileManager() {
         </div>
 
         {/* Bottom TabBar */}
-        <nav className="h-14 flex items-center bg-white border-t border-[var(--border-light)] flex-shrink-0 z-30" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+        <nav className="h-14 flex items-center bg-[var(--bg-card)] border-t border-[var(--border-light)] flex-shrink-0 z-30" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
           {[{ page: "files" as PageView, label: "文件", ico: Folder }, { page: "recent" as PageView, label: "最近", ico: Clock }, { page: "shares" as PageView, label: "分享", ico: Share2 }, { page: "trash" as PageView, label: "回收站", ico: Trash2 }].map(t => (
-            <button key={t.page} onClick={() => handleNavigate(t.page)} className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 text-[10px] transition-colors ${currentPage === t.page ? "text-[var(--brand-blue)]" : "text-[var(--text-tertiary)]"}`}>
+            <button key={t.page} onClick={() => handleNavigate(t.page)} className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 text-[10px] transition-colors ${currentPage === t.page ? "text-[var(--brand-blue)]" : "text-[#86868B]"}`}>
               <t.ico className="w-4 h-4" />{t.label}
             </button>
           ))}
@@ -362,7 +435,7 @@ export function FileManager() {
           <motion.div className="modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="absolute inset-0" onClick={() => setShowNewFolder(false)} />
             <motion.div className="modal-panel w-72 p-5" initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}>
-              <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-4">新建文件夹</h3>
+              <h3 className="text-[15px] font-semibold text-[#1D1D1F] mb-4">新建文件夹</h3>
               <form onSubmit={handleCreateFolder}><input type="text" value={folderName} onChange={e => setFolderName(e.target.value)} placeholder="文件夹名称" className="input-primary" autoFocus />
                 <div className="flex justify-end gap-2 mt-4"><button type="button" onClick={() => setShowNewFolder(false)} className="btn-secondary py-1.5 text-[13px]">取消</button><button type="submit" className="btn-primary py-1.5 text-[13px]">创建</button></div>
               </form>
@@ -378,7 +451,7 @@ export function FileManager() {
                 onRename={() => { setRenameFile(ctx.item); setCtx(null); }}
                 onDownload={() => { handleDownload(ctx.item); setCtx(null); }}
                 onMove={() => { setMoveFiles([ctx.item]); setCtx(null); }}
-                onDelete={() => { deleteFile(ctx.item.id); setCtx(null); }}
+                onDelete={() => { setConfirmDelete({ ids: [ctx.item.id], name: ctx.item.name }); setCtx(null); }}
                 onDeleteSelected={() => { handleDeleteSelected(); setCtx(null); }}
                 onShareSelected={handleShareSelected}
                 onMoveSelected={handleMoveSelected}
@@ -401,83 +474,80 @@ export function FileManager() {
     );
   }
 
-  // ===== DESKTOP UI (123云盘风格) =====
+  // ===== DESKTOP UI (iCloud Finder 风格) =====
   return (
-    <div className="h-screen flex flex-col bg-[var(--bg-primary)]">
-      {/* Header */}
-      <header className="h-14 flex items-center justify-between px-5 bg-white border-b border-[var(--border-light)] flex-shrink-0 z-30">
-        <div className="flex items-center gap-3">
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="btn-ghost md:hidden">
-            <Menu className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-md bg-[var(--brand-blue)] flex items-center justify-center">
-              <Cloud className="w-5 h-5 text-white" strokeWidth={2} />
-            </div>
-            <span className="text-[15px] font-semibold text-[var(--text-primary)]">Cloud Nine</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
-            <input
-              value={searchQuery}
-              onChange={e => handleSearch(e.target.value)}
-              placeholder="搜索文件..."
-              className="pl-9 pr-3 py-1.5 text-[13px] bg-[var(--bg-secondary)] rounded-md outline-none w-64 transition-all border border-transparent focus:bg-white focus:border-[var(--brand-blue)] focus:w-80 focus:shadow-[0_0_0_2px_rgba(22,119,255,0.1)]"
-            />
-            <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-disabled)] bg-white px-1 rounded hidden sm:inline">Ctrl+K</kbd>
-          </div>
-          <button onClick={() => setShowSettings(true)} className="btn-ghost" title="设置">
-            <Settings className="w-[18px] h-[18px]" />
-          </button>
-          <button onClick={handleLogout} className="btn-ghost" title="退出登录">
-            <LogOut className="w-[18px] h-[18px]" />
-          </button>
-          <div className="flex items-center gap-2 ml-1 pl-3 border-l border-[var(--border-light)]">
-            <div className="w-7 h-7 rounded-full bg-[var(--brand-blue-light)] flex items-center justify-center text-[var(--brand-blue)] text-[11px] font-semibold">
-              {(user?.username || "U")[0].toUpperCase()}
-            </div>
-            <span className="text-[13px] text-[var(--text-primary)] hidden sm:inline">{user?.username}</span>
-          </div>
-        </div>
-      </header>
-
+    <div className="h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
         <Sidebar currentPage={currentPage} onNavigate={handleNavigate} sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
         {/* Main area */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Toolbar */}
-          <div className="h-11 flex items-center justify-between px-4 bg-white border-b border-[var(--border-light)] flex-shrink-0">
-            <div className="flex items-center gap-1 text-[13px] min-w-0">
-              <button onClick={() => { navigateTo(null, "全部文件"); setCurrentPage("files"); }} className="btn-ghost p-1">
-                <Home className="w-4 h-4" />
-              </button>
-              {breadcrumbs.map((b, i) => (
-                <span key={b.id ?? "root"} className="flex items-center gap-1 flex-shrink-0">
-                  <ChevronRight className="w-3.5 h-3.5 text-[var(--text-disabled)]" />
-                  <button
-                    onClick={() => { navigateTo(b.id, b.name); setCurrentPage("files"); }}
-                    className={`px-1 py-0.5 rounded transition-colors truncate max-w-[200px] ${i === breadcrumbs.length - 1 ? "font-medium text-[var(--text-primary)]" : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"}`}
-                  >{b.name}</button>
-                </span>
-              ))}
+          {/* Finder toolbar */}
+          <div className="h-[60px] flex items-center justify-between px-5 flex-shrink-0"
+            style={{ background: 'var(--bg-glass)', backdropFilter: 'blur(24px) saturate(180%)', borderBottom: '0.5px solid var(--border)' }}>
+            {/* Left: back + big title */}
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              {currentPage === "files" ? (
+                <>
+                  <button onClick={() => { navigateTo(null, "全部文件"); setCurrentPage("files"); }} className="btn-ghost p-1.5">
+                    <Home className="w-[18px] h-[18px]" />
+                  </button>
+                  <div className="flex items-baseline gap-1.5 min-w-0">
+                    {breadcrumbs.map((b, i) => (
+                      <span key={b.id ?? "root"} className="flex items-center gap-1.5 flex-shrink-0">
+                        {i > 0 && <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--text-disabled)' }} />}
+                        <button
+                          onClick={() => { navigateTo(b.id, b.name); setCurrentPage("files"); }}
+                          className={`truncate max-w-[220px] transition-colors rounded ${i === breadcrumbs.length - 1 ? "text-[26px] font-semibold tracking-tight" : "text-[22px] font-medium hover:text-[var(--text)]"}`}
+                          style={{ color: i === breadcrumbs.length - 1 ? 'var(--text)' : 'var(--text-tertiary)' }}
+                        >{b.name}</button>
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <h1 className="text-[26px] font-semibold tracking-tight" style={{ color: 'var(--text)' }}>
+                  {currentPage === "recent" ? "最近" :
+                   currentPage === "docs" ? "文档" :
+                   currentPage === "images" ? "图片" :
+                   currentPage === "videos" ? "视频" :
+                   currentPage === "audio" ? "音频" :
+                   currentPage === "shares" ? "我的分享" :
+                   currentPage === "trash" ? "回收站" : "全部文件"}
+                </h1>
+              )}
             </div>
+
+            {/* Right: view toggle + search + actions + avatar */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="flex bg-[var(--bg-secondary)] rounded-md p-0.5">
+              <div className="flex rounded-full p-[3px]" style={{ background: 'var(--bg-input)' }}>
                 {[{ m: "list" as ViewMode, ico: List }, { m: "grid" as ViewMode, ico: LayoutGrid }].map(({ m, ico: Icon }) => (
-                  <button key={m} onClick={() => setViewMode(m)} className={`p-1.5 rounded transition-colors ${viewMode === m ? "bg-white shadow-sm text-[var(--text-primary)]" : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"}`}>
+                  <button key={m} onClick={() => setViewMode(m)} className={`p-1.5 rounded-full transition-colors ${viewMode === m ? "bg-[var(--bg-elev)] shadow-sm text-[var(--text)]" : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"}`}>
                     <Icon className="w-4 h-4" />
                   </button>
                 ))}
               </div>
-              <button onClick={() => setShowNewFolder(true)} className="btn-secondary text-[12px]">
-                <FolderPlus className="w-3.5 h-3.5" />新建文件夹
-              </button>
-              <button onClick={() => window.dispatchEvent(new Event("tcd:open-upload"))} className="btn-primary text-[12px]">
-                <Upload className="w-3.5 h-3.5" />上传文件
+              <div className="relative hidden sm:block" style={{ display: currentPage !== "trash" && currentPage !== "shares" ? undefined : "none" }}>
+                <Search className="w-[15px] h-[15px] absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
+                <input value={searchQuery} onChange={e => handleSearch(e.target.value)} placeholder="搜索"
+                  className="pl-8 pr-3 py-1.5 text-[13px] rounded-full outline-none w-36 focus:w-56 transition-all duration-200 border border-transparent"
+                  style={{ background: 'var(--bg-input)', color: 'var(--text)' }}
+                  onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = 'var(--glow)' }}
+                  onBlur={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.boxShadow = 'none' }} />
+              </div>
+              <div className="w-px h-5" style={{ background: 'var(--border)' }} />
+              <ThemeToggle />
+              {currentPage !== "trash" && currentPage !== "shares" && (
+                <>
+                  <button onClick={() => setShowNewFolder(true)} className="btn-ghost" title="新建文件夹"><FolderPlus className="w-[18px] h-[18px]" /></button>
+                  <button onClick={() => window.dispatchEvent(new Event("tcd:open-upload"))} className="btn-primary text-[13px] px-4 py-1.5"><Upload className="w-3.5 h-3.5" />上传</button>
+                </>
+              )}
+              <button onClick={handleLogout} className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[13px] font-semibold transition-transform hover:scale-105 active:scale-95"
+                style={{ background: 'linear-gradient(135deg, var(--accent), #5AC8FA)', boxShadow: 'var(--shadow-sm)' }}
+                title={`${user?.username || ""} · 点击退出`}>
+                {(user?.username || "U")[0].toUpperCase()}
               </button>
             </div>
           </div>
@@ -487,19 +557,27 @@ export function FileManager() {
             {currentPage === "trash" ? <TrashPage /> :
              currentPage === "shares" ? <SharesPage /> :
              isLoading ? (
-               <div className="p-4 space-y-1">
-                 {Array.from({ length: 8 }).map((_, i) => (
-                   <div key={i} className="h-[42px] bg-[var(--bg-secondary)] rounded-md animate-pulse" />
-                 ))}
+               <div className="p-8">
+                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                   {Array.from({ length: 10 }).map((_, i) => (
+                     <div key={i} className="flex flex-col items-center gap-3">
+                       <div className="w-full aspect-square rounded-2xl bg-[rgba(0,0,0,0.03)] animate-pulse" />
+                       <div className="w-24 h-3 bg-[rgba(0,0,0,0.03)] rounded animate-pulse" />
+                     </div>
+                   ))}
+                 </div>
                </div>
              ) : filteredFiles.length === 0 ? (
-               <div className="flex flex-col items-center justify-center h-full">
-                 <div className="w-16 h-16 rounded-full bg-[var(--bg-secondary)] flex items-center justify-center mb-4">
-                   <Folder className="w-8 h-8 text-[var(--text-disabled)]" />
-                 </div>
-                 <p className="text-[var(--text-tertiary)] text-[14px]">暂无文件</p>
-                 <button onClick={() => window.dispatchEvent(new Event("tcd:open-upload"))} className="btn-primary mt-4 text-[13px]">
-                   <Upload className="w-4 h-4" />上传第一个文件
+               <div className="flex flex-col items-center justify-center h-full py-20 relative overflow-hidden">
+                 <motion.div className="w-28 h-28 rounded-full flex items-center justify-center mb-6"
+                   style={{ background: 'var(--accent-light)' }}
+                   animate={{ scale: [1, 1.04, 1] }} transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}>
+                   <Cloud className="w-14 h-14" style={{ color: 'var(--accent)', opacity: 0.5 }} strokeWidth={1.1} />
+                 </motion.div>
+                 <p className="text-[16px] font-medium" style={{ color: 'var(--text-secondary)' }}>这个文件夹是空的</p>
+                 <p className="text-[13px] mt-1.5" style={{ color: 'var(--text-tertiary)' }}>点击右上角上传，或将文件直接拖进来</p>
+                 <button onClick={() => window.dispatchEvent(new Event("tcd:open-upload"))} className="btn-primary mt-6 text-[13px] px-5 py-2">
+                   <Upload className="w-4 h-4" />上传文件
                  </button>
                </div>
              ) : viewMode === "list" ? (
@@ -530,11 +608,12 @@ export function FileManager() {
 
           {/* Status bar */}
           {currentPage !== "trash" && currentPage !== "shares" && (
-            <div className="h-8 flex items-center justify-between px-4 bg-[var(--bg-secondary)] border-t border-[var(--border-light)] flex-shrink-0">
-              <span className="text-[12px] text-[var(--text-tertiary)]">
+            <div className="h-8 flex items-center justify-between px-4 flex-shrink-0"
+              style={{ background: 'var(--bg-glass)', borderTop: '0.5px solid var(--border)' }}>
+              <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
                 {selected.size > 0 ? `已选择 ${selected.size} 项` : `${filteredFiles.length} 个项目`}
               </span>
-              <span className="text-[12px] text-[var(--text-tertiary)] hidden sm:inline">
+              <span className="text-[11px] hidden sm:inline" style={{ color: 'var(--text-tertiary)' }}>
                 {selected.size > 0 ? "" : totalSize > 0 ? fmtSize(totalSize) : ""}
               </span>
             </div>
@@ -542,15 +621,15 @@ export function FileManager() {
           {/* Bulk download progress */}
           <AnimatePresence>
             {downloadingMulti && (
-              <motion.div className="h-8 flex items-center gap-3 px-4 bg-[var(--brand-blue-light)] border-t border-[var(--brand-blue)]/20 flex-shrink-0" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 32 }} exit={{ opacity: 0, height: 0 }}>
-                <Archive className="w-3.5 h-3.5 text-[var(--brand-blue)] flex-shrink-0" />
-                <span className="text-[11px] text-[var(--brand-blue)] truncate flex-1">{multiProgress.fileName}</span>
-                <span className="text-[11px] text-[var(--brand-blue)] flex-shrink-0">{multiProgress.current}/{multiProgress.total}</span>
-                <div className="w-20 h-1 bg-[var(--brand-blue)]/20 rounded-full overflow-hidden flex-shrink-0">
-                  <div className="h-full bg-[var(--brand-blue)] rounded-full transition-all duration-300" style={{ width: `${Math.max(multiProgress.percent, 3)}%` }} />
+              <motion.div className="flex items-center gap-3 px-4 py-1.5 bg-[rgba(91,135,49,0.1)] border-t border-[#5B8731]/20 flex-shrink-0" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 40 }} exit={{ opacity: 0, height: 0 }}>
+                <Archive className="w-3.5 h-3.5 text-[#5B8731] flex-shrink-0" />
+                <span className="text-[11px] text-[#9CA3AF] truncate flex-1">{multiProgress.fileName}</span>
+                <span className="text-[11px] text-[#9CA3AF] flex-shrink-0">{multiProgress.current}/{multiProgress.total}</span>
+                <div className="w-20 flex-shrink-0">
+                  <MCProgressBar progress={Math.max(multiProgress.percent, 1)} height={8} />
                 </div>
               </motion.div>
-            )}
+              )}
           </AnimatePresence>
         </div>
       </div>
@@ -560,7 +639,7 @@ export function FileManager() {
         <motion.div className="modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <div className="absolute inset-0" onClick={() => setShowNewFolder(false)} />
           <motion.div className="modal-panel w-80 p-5" initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}>
-            <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-4">新建文件夹</h3>
+            <h3 className="text-[15px] font-semibold text-[#1D1D1F] mb-4">新建文件夹</h3>
             <form onSubmit={handleCreateFolder}>
               <input type="text" value={folderName} onChange={e => setFolderName(e.target.value)} placeholder="文件夹名称" className="input-primary" autoFocus />
               <div className="flex justify-end gap-2 mt-4">
@@ -568,6 +647,30 @@ export function FileManager() {
                 <button type="submit" className="btn-primary py-1.5 text-[13px]">创建</button>
               </div>
             </form>
+          </motion.div>
+        </motion.div>
+      )}</AnimatePresence>
+
+      {/* Delete confirm */}
+      <AnimatePresence>{confirmDelete && (
+        <motion.div className="modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <div className="absolute inset-0" onClick={() => setConfirmDelete(null)} />
+          <motion.div className="modal-panel w-[340px] p-6 text-center" initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}>
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'var(--red)', boxShadow: 'var(--shadow)' }}>
+              <Trash2 className="w-5 h-5 text-white" strokeWidth={1.6} />
+            </div>
+            <h3 className="text-[16px] font-semibold text-[#1D1D1F] mb-2">删除文件</h3>
+            <p className="text-[13px] text-[#86868B] mb-1">
+              {confirmDelete.name ? `确定要删除「${confirmDelete.name}」吗？` : `确定要删除 ${confirmDelete.ids.length} 个项目吗？`}
+            </p>
+            <p className="text-[12px] text-[#AEAEB2] mb-5">删除后可在回收站中恢复</p>
+            <div className="flex justify-center gap-2">
+              <button onClick={() => setConfirmDelete(null)} className="btn-secondary py-2 px-5 text-[13px]">取消</button>
+              <button
+                onClick={() => { doDelete(confirmDelete.ids); setConfirmDelete(null); }}
+                className="btn-danger py-2 px-5 text-[13px]"
+              >删除</button>
+            </div>
           </motion.div>
         </motion.div>
       )}</AnimatePresence>
@@ -580,7 +683,7 @@ export function FileManager() {
               onRename={() => { setRenameFile(ctx.item); setCtx(null); }}
               onDownload={() => { handleDownload(ctx.item); setCtx(null); }}
               onMove={() => { setMoveFiles([ctx.item]); setCtx(null); }}
-              onDelete={() => { deleteFile(ctx.item.id); setCtx(null); }}
+              onDelete={() => { setConfirmDelete({ ids: [ctx.item.id], name: ctx.item.name }); setCtx(null); }}
               onDeleteSelected={() => { handleDeleteSelected(); setCtx(null); }}
               onShareSelected={handleShareSelected}
               onMoveSelected={handleMoveSelected}

@@ -33,8 +33,8 @@ export function ContextMenu({ item, selected, selectedCount, onClose, onShare, o
         ...(item.type === "file" ? [
           ...(isPreviewable(item) && onPreview ? [{ icon: Eye, label: "预览", action: onPreview }] : []),
           { icon: Download, label: "下载", action: onDownload },
-          { icon: Share2, label: "分享", action: onShare },
         ] : []),
+        { icon: Share2, label: "分享", action: onShare },
         { icon: FolderInput, label: "移动到", action: onMove },
         null as any,
         { icon: Trash2, label: "删除", action: onDelete, danger: true },
@@ -42,13 +42,13 @@ export function ContextMenu({ item, selected, selectedCount, onClose, onShare, o
 
   return (
     <motion.div ref={ref} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.12 }}
-      className="fixed z-[100] w-40 bg-white rounded-lg py-1 shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-[var(--border-light)]">
+      className="context-menu fixed z-[100] w-44">
       {items.map((e, i) => {
-        if (e === null) return <div key={i} className="h-px bg-[var(--border-light)] my-0.5 mx-3" />;
+        if (e === null) return <div key={i} className="h-px bg-[rgba(0,0,0,0.06)] my-0.5 mx-3" />;
         const IconComp = e.icon as React.FC<{ className?: string; strokeWidth?: number }>;
         return (
-          <button key={i} className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-[13px] transition-colors ${e.danger ? "text-[var(--brand-red)] hover:bg-red-50" : "text-[var(--text-primary)] hover:bg-[rgba(0,0,0,0.03)]"}`}
-            onClick={e.action}>{IconComp && <IconComp className="w-4 h-4" strokeWidth={1.6} />}{e.label}</button>
+          <button key={i} className={`context-menu-item ${e.danger ? "danger" : ""}`}
+            onClick={e.action}>{IconComp && <IconComp className="w-[18px] h-[18px]" strokeWidth={1.4} />}{e.label}</button>
         );
       })}
     </motion.div>

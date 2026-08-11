@@ -159,23 +159,23 @@ export function AdminPanel() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F5F6F7]">
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F5F7]">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md mx-4">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-lg bg-gradient-to-br from-[#F53F3F] to-[#FF8F1F] shadow-lg shadow-red-500/25 mb-5">
-              <Shield className="w-8 h-8 text-white" strokeWidth={1.8} />
+              <Shield className="w-8 h-8 text-[#1D1D1F]" strokeWidth={1.8} />
             </div>
-            <h1 className="text-3xl font-bold text-[#1F2329]">管理后台</h1>
-            <p className="mt-2 text-[#646A73] text-sm">Cloud Nine 系统管理</p>
+            <h1 className="text-3xl font-bold text-[#1D1D1F]">管理后台</h1>
+            <p className="mt-2 text-[#86868B] text-sm">Cloud Nine 系统管理</p>
           </div>
-          <div className="bg-white rounded-lg p-8 shadow-[0_2px_20px_rgba(0,0,0,0.06)] border border-[#E5E6EB]">
+          <div className="bg-white rounded-lg p-8 shadow-[0_2px_20px_rgba(0,0,0,0.06)] border border-[rgba(0,0,0,0.08)]">
             <form onSubmit={handleLogin} className="space-y-5">
               <div>
-                <label className="block text-[12px] font-medium text-[#646A73] mb-1.5">管理密码</label>
+                <label className="block text-[12px] font-medium text-[#86868B] mb-1.5">管理密码</label>
                 <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="input-primary" placeholder="输入管理员密码" required />
               </div>
               {error && <motion.p initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="text-[#F53F3F] text-[12px] text-center">{error}</motion.p>}
-              <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3 text-[15px] font-medium text-white bg-[#1677FF] hover:bg-[#4096FF] rounded-md transition-all active:scale-[0.98] disabled:opacity-50">{loading ? "验证中..." : "登录管理后台"}</button>
+              <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3 text-[15px] font-medium text-[#1D1D1F] bg-[#1677FF] hover:bg-[#4096FF] rounded-md transition-all active:scale-[0.98] disabled:opacity-50">{loading ? "验证中..." : "登录管理后台"}</button>
             </form>
           </div>
         </motion.div>
@@ -190,34 +190,34 @@ export function AdminPanel() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F5F6F7]">
-      <header className="sticky top-0 z-10 bg-white border-b border-[#E5E6EB]">
+    <div className="min-h-screen bg-[#F5F5F7]">
+      <header className="sticky top-0 z-10 bg-white border-b border-[rgba(0,0,0,0.08)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-[#F53F3F] to-[#FF8F1F] flex items-center justify-center"><Shield className="w-3.5 h-3.5 text-white" /></div>
-            <h1 className="text-[15px] font-semibold text-[#1F2329]">Cloud Nine 管理后台</h1>
+            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-[#F53F3F] to-[#FF8F1F] flex items-center justify-center"><Shield className="w-3.5 h-3.5 text-[#1D1D1F]" /></div>
+            <h1 className="text-[15px] font-semibold text-[#1D1D1F]">Cloud Nine 管理后台</h1>
           </div>
-          <button onClick={logout} className="flex items-center gap-1.5 text-[12px] text-[#646A73] hover:text-[#F53F3F] transition-colors"><LogOut className="w-3.5 h-3.5" />退出</button>
+          <button onClick={logout} className="flex items-center gap-1.5 text-[12px] text-[#86868B] hover:text-[#F53F3F] transition-colors"><LogOut className="w-3.5 h-3.5" />退出</button>
         </div>
       </header>
 
       {dlProgress && (
-        <div className="sticky top-12 z-10 bg-white border-b border-[#E5E6EB] px-4 py-2">
+        <div className="sticky top-12 z-10 bg-white border-b border-[rgba(0,0,0,0.08)] px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center gap-3">
-            <span className="text-[12px] font-medium text-[#1F2329] truncate flex-1">{dlProgress.fileName}</span>
-            <span className="text-[11px] text-[#646A73]">{dlProgress.status}</span>
+            <span className="text-[12px] font-medium text-[#1D1D1F] truncate flex-1">{dlProgress.fileName}</span>
+            <span className="text-[11px] text-[#86868B]">{dlProgress.status}</span>
             <div className="w-24 h-1.5 bg-[#E5E6EB] rounded-full overflow-hidden flex-shrink-0">
               <div className="h-full bg-[#1677FF] rounded-full transition-all duration-300" style={{ width: `${dlProgress.pct}%` }} />
             </div>
-            <span className="text-[11px] text-[#646A73] w-8 text-right">{dlProgress.pct}%</span>
+            <span className="text-[11px] text-[#86868B] w-8 text-right">{dlProgress.pct}%</span>
           </div>
         </div>
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <div className="flex items-center gap-1 mb-6 bg-white rounded-lg p-1 border border-[#E5E6EB] overflow-x-auto">
+        <div className="flex items-center gap-1 mb-6 bg-white rounded-lg p-1 border border-[rgba(0,0,0,0.08)] overflow-x-auto">
           {tabs.map(t => (
-            <button key={t.key} onClick={() => { setTab(t.key); if (t.key === "shares" && shares.length === 0) loadShares(); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] transition-all whitespace-nowrap flex-shrink-0 ${tab === t.key ? "bg-[var(--brand-blue-light)] text-[var(--brand-blue)] font-medium" : "text-[#646A73] hover:text-[#1F2329]"}`}>
+            <button key={t.key} onClick={() => { setTab(t.key); if (t.key === "shares" && shares.length === 0) loadShares(); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] transition-all whitespace-nowrap flex-shrink-0 ${tab === t.key ? "bg-[var(--brand-blue-light)] text-[var(--brand-blue)] font-medium" : "text-[#86868B] hover:text-[#1D1D1F]"}`}>
               <t.icon className="w-3.5 h-3.5" />{t.label}
             </button>
           ))}
@@ -235,8 +235,8 @@ export function AdminPanel() {
             ].map((s: any, i) => (
               <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="card p-4">
                 <s.icon className={`w-4 h-4 ${s.color} mb-2`} />
-                <p className="text-xl font-bold text-[#1F2329]">{s.value}</p>
-                <p className="text-[11px] text-[#646A73] mt-1">{s.label}</p>
+                <p className="text-xl font-bold text-[#1D1D1F]">{s.value}</p>
+                <p className="text-[11px] text-[#86868B] mt-1">{s.label}</p>
               </motion.div>
             ))}
           </div>
@@ -246,54 +246,54 @@ export function AdminPanel() {
           <div className="card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-[13px]">
-                <thead className="bg-[#FAFBFC]"><tr>
+                <thead className="bg-[rgba(0,0,0,0.02)]"><tr>
                   <th className="w-8" />
-                  {["ID","用户名","邮箱","存储","注册"].map(h => <th key={h} className="text-left px-4 py-2.5 text-[11px] font-medium text-[#646A73]">{h}</th>)}
-                  <th className="text-left px-4 py-2.5 text-[11px] font-medium text-[#646A73]">操作</th>
+                  {["ID","用户名","邮箱","存储","注册"].map(h => <th key={h} className="text-left px-4 py-2.5 text-[11px] font-medium text-[#86868B]">{h}</th>)}
+                  <th className="text-left px-4 py-2.5 text-[11px] font-medium text-[#86868B]">操作</th>
                 </tr></thead>
                 <tbody>
                   {users.map(u => (
                     <>
-                      <tr key={u.id} className="hover:bg-[rgba(22,119,255,0.03)] cursor-pointer border-b border-[#E5E6EB]" onClick={() => toggleUserFiles(u.id)}>
-                        <td className="pl-3 py-2.5 text-[#BCC0C6]">
+                      <tr key={u.id} className="hover:bg-[rgba(22,119,255,0.03)] cursor-pointer border-b border-[rgba(0,0,0,0.08)]" onClick={() => toggleUserFiles(u.id)}>
+                        <td className="pl-3 py-2.5 text-[#D1D1D6]">
                           {expandedUser === u.id ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                         </td>
-                        <td className="px-4 py-2.5 text-[#646A73]">{u.id}</td>
-                        <td className="px-4 py-2.5 font-medium text-[#1F2329]">{u.username}</td>
-                        <td className="px-4 py-2.5 text-[#646A73]">{u.email || "-"}</td>
-                        <td className="px-4 py-2.5 text-[#646A73]">{fmtBytes(u.storage_used)}</td>
-                        <td className="px-4 py-2.5 text-[#646A73]">{fmtDate(u.created_at)}</td>
+                        <td className="px-4 py-2.5 text-[#86868B]">{u.id}</td>
+                        <td className="px-4 py-2.5 font-medium text-[#1D1D1F]">{u.username}</td>
+                        <td className="px-4 py-2.5 text-[#86868B]">{u.email || "-"}</td>
+                        <td className="px-4 py-2.5 text-[#86868B]">{fmtBytes(u.storage_used)}</td>
+                        <td className="px-4 py-2.5 text-[#86868B]">{fmtDate(u.created_at)}</td>
                         <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
                           <button onClick={() => delUser(u.id, u.username)} className="text-[12px] text-[#F53F3F] hover:text-[#F76560]">删除</button>
                         </td>
                       </tr>
                       {expandedUser === u.id && (
                         <tr key={`${u.id}-files`}>
-                          <td colSpan={7} className="p-0 bg-[#FAFBFC]">
+                          <td colSpan={7} className="p-0 bg-[rgba(0,0,0,0.02)]">
                             {loadingFiles === u.id ? (
-                              <div className="p-4 text-center text-[#BCC0C6] text-[12px]">加载中...</div>
+                              <div className="p-4 text-center text-[#D1D1D6] text-[12px]">加载中...</div>
                             ) : (
                               <div className="overflow-x-auto">
                                 <table className="w-full text-[12px]">
-                                  <thead className="bg-[rgba(0,0,0,0.02)]">
+                                  <thead className="bg-[rgba(255,255,255,0.03)]">
                                     <tr>
-                                      <th className="text-left px-4 py-1.5 text-[10px] font-medium text-[#8F959E]">文件名</th>
-                                      <th className="text-left px-4 py-1.5 text-[10px] font-medium text-[#8F959E]">类型</th>
-                                      <th className="text-left px-4 py-1.5 text-[10px] font-medium text-[#8F959E]">大小</th>
-                                      <th className="text-left px-4 py-1.5 text-[10px] font-medium text-[#8F959E]">日期</th>
-                                      <th className="text-left px-4 py-1.5 text-[10px] font-medium text-[#8F959E]">操作</th>
+                                      <th className="text-left px-4 py-1.5 text-[10px] font-medium text-[#AEAEB2]">文件名</th>
+                                      <th className="text-left px-4 py-1.5 text-[10px] font-medium text-[#AEAEB2]">类型</th>
+                                      <th className="text-left px-4 py-1.5 text-[10px] font-medium text-[#AEAEB2]">大小</th>
+                                      <th className="text-left px-4 py-1.5 text-[10px] font-medium text-[#AEAEB2]">日期</th>
+                                      <th className="text-left px-4 py-1.5 text-[10px] font-medium text-[#AEAEB2]">操作</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {((userFiles[u.id] || []).length === 0) ? (
-                                      <tr><td colSpan={5} className="px-4 py-6 text-center text-[#BCC0C6] text-[12px]">暂无文件</td></tr>
+                                      <tr><td colSpan={5} className="px-4 py-6 text-center text-[#D1D1D6] text-[12px]">暂无文件</td></tr>
                                     ) : (
                                       (userFiles[u.id] || []).map(f => (
-                                        <tr key={f.id} className="hover:bg-white/50 border-b border-[#E5E6EB]/50">
-                                          <td className="px-4 py-1.5 font-medium text-[#1F2329] truncate max-w-[250px]">{f.name}</td>
-                                          <td className="px-4 py-1.5 text-[#646A73]">{f.mime_type || "文件"}</td>
-                                          <td className="px-4 py-1.5 text-[#646A73]">{fmtBytes(f.size)}</td>
-                                          <td className="px-4 py-1.5 text-[#646A73]">{fmtDate(f.created_at)}</td>
+                                        <tr key={f.id} className="hover:bg-white/50 border-b border-[rgba(0,0,0,0.08)]/50">
+                                          <td className="px-4 py-1.5 font-medium text-[#1D1D1F] truncate max-w-[250px]">{f.name}</td>
+                                          <td className="px-4 py-1.5 text-[#86868B]">{f.mime_type || "文件"}</td>
+                                          <td className="px-4 py-1.5 text-[#86868B]">{fmtBytes(f.size)}</td>
+                                          <td className="px-4 py-1.5 text-[#86868B]">{fmtDate(f.created_at)}</td>
                                           <td className="px-4 py-1.5">
                                             <div className="flex items-center gap-2">
                                               <button onClick={() => downloadFile(f.id, f.name, f.is_chunks)} className="text-[12px] text-[#1677FF] hover:text-[#4096FF]">下载</button>
@@ -313,7 +313,7 @@ export function AdminPanel() {
                     </>
                   ))}
                   {users.length === 0 && (
-                    <tr><td colSpan={7} className="px-4 py-8 text-center text-[#BCC0C6] text-[12px]">暂无用户</td></tr>
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-[#D1D1D6] text-[12px]">暂无用户</td></tr>
                   )}
                 </tbody>
               </table>
@@ -325,21 +325,21 @@ export function AdminPanel() {
           <div className="card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-[13px]">
-                <thead className="bg-[#FAFBFC]"><tr>{["Token","文件","创建者","下载数","提取码","过期","创建时间","操作"].map(h => <th key={h} className="text-left px-4 py-2.5 text-[11px] font-medium text-[#646A73]">{h}</th>)}</tr></thead>
+                <thead className="bg-[rgba(0,0,0,0.02)]"><tr>{["Token","文件","创建者","下载数","提取码","过期","创建时间","操作"].map(h => <th key={h} className="text-left px-4 py-2.5 text-[11px] font-medium text-[#86868B]">{h}</th>)}</tr></thead>
                 <tbody>
                   {shares.map((s: ShareRow) => (
-                    <tr key={s.id} className="hover:bg-[rgba(22,119,255,0.03)] border-b border-[#E5E6EB]">
-                      <td className="px-4 py-2.5"><code className="text-[11px] bg-[#FAFBFC] px-1.5 py-0.5 rounded text-[#1677FF]">{s.token}</code></td>
-                      <td className="px-4 py-2.5 font-medium text-[#1F2329] truncate max-w-[200px]">{s.file_name}</td>
-                      <td className="px-4 py-2.5 text-[#646A73]">{s.username}</td>
-                      <td className="px-4 py-2.5 text-[#646A73]">{s.download_count}{s.max_downloads ? `/${s.max_downloads}` : ""}</td>
-                      <td className="px-4 py-2.5 text-[#646A73]">{s.password ? "有" : "无"}</td>
-                      <td className="px-4 py-2.5 text-[#646A73]">{s.expire_at ? fmtDate(s.expire_at) : "永不过期"}</td>
-                      <td className="px-4 py-2.5 text-[#646A73]">{fmtDate(s.created_at)}</td>
+                    <tr key={s.id} className="hover:bg-[rgba(22,119,255,0.03)] border-b border-[rgba(0,0,0,0.08)]">
+                      <td className="px-4 py-2.5"><code className="text-[11px] bg-[rgba(0,0,0,0.02)] px-1.5 py-0.5 rounded text-[#1677FF]">{s.token}</code></td>
+                      <td className="px-4 py-2.5 font-medium text-[#1D1D1F] truncate max-w-[200px]">{s.file_name}</td>
+                      <td className="px-4 py-2.5 text-[#86868B]">{s.username}</td>
+                      <td className="px-4 py-2.5 text-[#86868B]">{s.download_count}{s.max_downloads ? `/${s.max_downloads}` : ""}</td>
+                      <td className="px-4 py-2.5 text-[#86868B]">{s.password ? "有" : "无"}</td>
+                      <td className="px-4 py-2.5 text-[#86868B]">{s.expire_at ? fmtDate(s.expire_at) : "永不过期"}</td>
+                      <td className="px-4 py-2.5 text-[#86868B]">{fmtDate(s.created_at)}</td>
                       <td className="px-4 py-2.5"><button onClick={() => delShare(s.id)} className="text-[12px] text-[#F53F3F] hover:text-[#F76560]">删除</button></td>
                     </tr>
                   ))}
-                  {shares.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#BCC0C6] text-[12px]">暂无数据</td></tr>}
+                  {shares.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#D1D1D6] text-[12px]">暂无数据</td></tr>}
                 </tbody>
               </table>
             </div>

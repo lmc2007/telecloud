@@ -216,10 +216,11 @@ export async function getPreviewStreamUrl(fileId: string): Promise<string> {
 /**
  * Build a share stream URL for public share preview.
  */
-export function getShareStreamUrl(token: string, password?: string, fileIndex?: number): string {
+export function getShareStreamUrl(token: string, password?: string, fileIndex?: number, folderId?: string): string {
   const params = new URLSearchParams();
   if (password) params.set("pw", password);
   if (fileIndex !== undefined && fileIndex > 0) params.set("file_index", String(fileIndex));
+  if (folderId) params.set("folder_id", folderId);
   const qs = params.toString();
   return `${API_BASE}/s/${token}/stream${qs ? `?${qs}` : ""}`;
 }

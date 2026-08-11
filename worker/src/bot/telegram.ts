@@ -25,6 +25,12 @@ function fileUrl(env: Env, filePath: string): string {
 /**
  * Upload a document to a Telegram chat.
  * Uses multipart/form-data with sendDocument API.
+ *
+ * CPU safety: for payloads > STREAM_THRESHOLD the multipart body is built as a
+ * ReadableStream and sent with duplex:"half". A single synchronous multipart
+ * serialization of 10-15MB exceeds the Workers free-plan 10ms CPU limit and
+ * kills the request ("Worker exceeded CPU time limit"). Streaming lets the
+ * runtime send small chunks and reset the CPU clock on every I/O yield.
  */
 export async function sendDocument(
   env: Env,
@@ -34,20 +40,64 @@ export async function sendDocument(
   messageThreadId?: number,
   caption?: string
 ): Promise<{ message_id: number; file_id: string; file_size: number }> {
-  const formData = new FormData();
-  formData.append("chat_id", chatId);
-  formData.append("document", fileData, filename);
-  formData.append("disable_content_type_detection", "true");
-  if (messageThreadId) {
-    formData.append("message_thread_id", String(messageThreadId));
-  }
-  if (caption) {
-    formData.append("caption", caption);
-  }
-
   const url = apiUrl(env, "sendDocument");
+  const useStreaming = fileData.size > 2 * 1024 * 1024; // >2MB → streaming multipart
+  const boundary = `----CloudDrive${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+  const enc = new TextEncoder();
+  const safeName = filename.replace(/["\\\r\n]/g, "_");
+  const safeCaption = caption ? caption.replace(/\r?\n/g, " ") : undefined;
+
+  // Streaming multipart body — rebuilt on every retry (a stream is one-shot).
+  const buildStreamingBody = (): ReadableStream<Uint8Array> =>
+    new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const push = (s: string) => controller.enqueue(enc.encode(s));
+        try {
+          push(`--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${chatId}\r\n`);
+          push(`--${boundary}\r\nContent-Disposition: form-data; name="disable_content_type_detection"\r\n\r\ntrue\r\n`);
+          if (messageThreadId) {
+            push(`--${boundary}\r\nContent-Disposition: form-data; name="message_thread_id"\r\n\r\n${messageThreadId}\r\n`);
+          }
+          if (safeCaption) {
+            push(`--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${safeCaption}\r\n`);
+          }
+          push(`--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${safeName}"\r\nContent-Type: application/octet-stream\r\n\r\n`);
+          // Stream file bytes in small chunks, yielding between chunks so the
+          // CPU clock resets on every I/O — stays well under the 10ms limit.
+          const CHUNK = 256 * 1024;
+          for (let off = 0; off < fileData.size; off += CHUNK) {
+            const slice = fileData.slice(off, Math.min(off + CHUNK, fileData.size));
+            controller.enqueue(new Uint8Array(await slice.arrayBuffer()));
+            await new Promise<void>(r => setTimeout(r, 0));
+          }
+          push(`\r\n--${boundary}--\r\n`);
+          controller.close();
+        } catch (e) {
+          controller.error(e);
+        }
+      },
+    });
+
   const response = await retryWithBackoff(async () => {
-    const res = await fetch(url, { method: "POST", body: formData });
+    const res = useStreaming
+      ? await fetch(url, {
+          method: "POST",
+          body: buildStreamingBody(),
+          headers: { "Content-Type": `multipart/form-data; boundary=${boundary}` },
+          duplex: "half",
+        } as RequestInit)
+      : await fetch(url, {
+          method: "POST",
+          body: (() => {
+            const fd = new FormData();
+            fd.append("chat_id", chatId);
+            fd.append("document", fileData, safeName);
+            fd.append("disable_content_type_detection", "true");
+            if (messageThreadId) fd.append("message_thread_id", String(messageThreadId));
+            if (caption) fd.append("caption", caption);
+            return fd;
+          })(),
+        });
     const json = (await res.json()) as TelegramResponse<TelegramMessage>;
     if (!json.ok) {
       const err = new Error(json.description || "sendDocument failed") as Error & {
@@ -71,10 +121,29 @@ export async function sendDocument(
     throw new Error("sendDocument: exhausted retries with empty file_id");
   }
 
+  // DEBUG: integrity check — Telegram's stored file_size vs what we sent.
+  // If Telegram stored noticeably FEWER bytes than sent, the chunk was
+  // truncated server-side. Throwing here surfaces the error to the caller
+  // (WS flush → client volume retry, or HTTP upload handler → request fails)
+  // instead of silently storing a broken chunk.
+  const tgSize = doc.file_size;
+  const sentSize = fileData.size;
+  if (tgSize === undefined) {
+    console.warn(`[sendDocument] name="${filename}" tgSize=undefined (cannot verify integrity) sent=${sentSize}`);
+  } else if (tgSize !== sentSize) {
+    console.warn(`[sendDocument] SIZE MISMATCH name="${filename}" sent=${sentSize} tg=${tgSize} diff=${tgSize - sentSize}`);
+    const MAX_DEVIATION = Math.max(1024, Math.floor(sentSize * 0.001)); // 1KB or 0.1%
+    if (sentSize - tgSize > MAX_DEVIATION) {
+      throw new Error(`sendDocument size mismatch (sent=${sentSize}, tg=${tgSize}) — treating as upload corruption`);
+    }
+  } else {
+    console.log(`[sendDocument] ok name="${filename}" sent=${sentSize} tg=${tgSize}`);
+  }
+
   return {
     message_id: msg.message_id,
     file_id: doc.file_id,
-    file_size: doc.file_size || fileData.size,
+    file_size: tgSize || sentSize,
   };
 }
 

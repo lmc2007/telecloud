@@ -36,7 +36,7 @@ function withCors(response: Response, origin?: string): Response {
 app.get("/", (c) => {
   return c.json({
     success: true,
-    data: { name: "Cloud Nine API", version: "2.0.0", status: "ok" },
+    data: { name: "Cloud Nine API", version: "3.0.0", status: "ok" },
   });
 });
 
@@ -326,7 +326,7 @@ async function handleUploadComplete(
     filename: string;
     total_size: number;
     parent_id?: string | null;
-    file_ids: { index: number; file_id: string }[];
+    file_ids: { index: number; file_id: string; size?: number }[];
   };
 
   if (!body.file_ids || body.file_ids.length === 0) {
@@ -376,35 +376,60 @@ async function handleUploadComplete(
     `${generateUUID()}.record.json`, messageThreadId, caption
   );
 
-  // Resolve actual chunk sizes from Telegram before storing metadata.
-  // Batch getFile calls (max 10 concurrent) to stay within the 50 sub-request limit.
-  const { getFile } = await import("./bot/telegram");
-  const chunkInfos: ChunkInfo[] = [];
-  const BATCH = 10;
-  for (let i = 0; i < body.file_ids.length; i += BATCH) {
-    const batch = body.file_ids.slice(i, i + BATCH);
-    const results = await Promise.all(
-      batch.map(async (c): Promise<ChunkInfo> => {
-        try {
-          const f = await getFile(env, c.file_id);
-          return {
-            index: c.index,
-            size: f.file_size || 0,
-            telegram_file_id: c.file_id,
-            telegram_message_id: 0,
-            file_path: f.file_path || undefined,
-          };
-        } catch {
-          return {
-            index: c.index,
-            size: 0,
-            telegram_file_id: c.file_id,
-            telegram_message_id: 0,
-          };
-        }
-      })
-    );
-    chunkInfos.push(...results);
+  // Chunk sizes come from the client: the WS upload path reported each flush's
+  // real byte count in volume_ok (state.fileIds.size). We deliberately do NOT
+  // call Telegram getFile() per chunk here — a large file has 200+ chunks and
+  // Cloudflare Free caps subrequests at 50 per invocation, so the batch would
+  // fail with "Too many subrequests" and hang the complete request.
+  const chunkInfos: ChunkInfo[] = body.file_ids.map((c) => ({
+    index: c.index,
+    size: typeof c.size === "number" && c.size > 0 ? c.size : 0,
+    telegram_file_id: c.file_id,
+    telegram_message_id: 0,
+  }));
+
+  // ===== DEBUG: upload integrity checks =====
+  const zeroSizeChunks = chunkInfos.filter(c => !c.size || c.size <= 0);
+  if (zeroSizeChunks.length > 0) {
+    console.warn(`[upload/complete] ${zeroSizeChunks.length}/${chunkInfos.length} chunks have size=0 (old client?): indices=${zeroSizeChunks.map(c => c.index).join(",")}`);
+  }
+  const sumSizes = chunkInfos.reduce((s, c) => s + c.size, 0);
+  console.log(`[upload/complete] chunks=${chunkInfos.length} sumSizes=${sumSizes} declaredTotal=${body.total_size} diff=${body.total_size - sumSizes}`);
+
+  // Per-volume partIdx must be contiguous from 0 (detects ordering/index bugs)
+  const byVolume = new Map<number, number[]>();
+  for (const c of chunkInfos) {
+    const vol = Math.floor(c.index / 100);
+    const part = c.index % 100;
+    if (!byVolume.has(vol)) byVolume.set(vol, []);
+    byVolume.get(vol)!.push(part);
+  }
+  let seqOk = true;
+  for (const [vol, parts] of byVolume) {
+    parts.sort((a, b) => a - b);
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i] !== i) {
+        seqOk = false;
+        console.warn(`[upload/complete] INDEX SEQ BROKEN volume=${vol} partIdx=${parts.join(",")}`);
+        break;
+      }
+    }
+  }
+  if (seqOk) console.log(`[upload/complete] index sequence OK (volumes=${[...byVolume.keys()].join(",")}, perVolCounts=${[...byVolume.values()].map(v => v.length).join(",")})`);
+
+  // Hard fail if sizes are all known and the sum clearly disagrees with the
+  // declared total — the upload is corrupt, better to reject than store broken data.
+  if (zeroSizeChunks.length === 0) {
+    const MAX_DEVIATION = Math.max(1024, Math.floor(body.total_size * 0.001));
+    if (Math.abs(sumSizes - body.total_size) > MAX_DEVIATION) {
+      console.error(`[upload/complete] REJECT: sumSizes=${sumSizes} declaredTotal=${body.total_size} diff=${Math.abs(sumSizes - body.total_size)}`);
+      return Response.json(
+        { success: false, error: `上传数据不完整: 分块总大小 ${sumSizes} 与声明大小 ${body.total_size} 不符` },
+        { status: 400 }
+      );
+    }
+  } else {
+    console.warn(`[upload/complete] skipping sum check: ${zeroSizeChunks.length} chunks have unknown size`);
   }
 
   const fileId = generateUUID();
@@ -707,9 +732,35 @@ async function handleDownloadChunk(
       );
     }
 
-    return new Response(resp.body, {
+    // Read the full CDN stream and verify byte count before responding.
+    // (a) If chunk.size is known (>0), a shorter stream means truncation —
+    //     fail loudly instead of sending a truncated body that silently
+    //     corrupts the download.
+    // (b) If chunk.size is 0 (legacy uploads whose size wasn't recorded),
+    //     never set Content-Length: 0 — that makes clients drop the body.
+    //     Just return the full bytes with the real Content-Length.
+    // Chunks are ≤15MB, so buffering is safe within the 128MB isolate limit.
+    let buf: ArrayBuffer;
+    try {
+      buf = await resp.arrayBuffer();
+    } catch {
+      return Response.json(
+        { success: false, error: `Chunk ${chunkIdx} CDN 流读取失败` },
+        { status: 500 }
+      );
+    }
+    if (chunk.size > 0 && buf.byteLength !== chunk.size) {
+      console.error(`[download] chunk ${chunkIdx}: CDN stream truncated expected=${chunk.size} actual=${buf.byteLength}`);
+      return Response.json(
+        { success: false, error: `Chunk ${chunkIdx} 数据不完整: 期望 ${chunk.size} 字节, 实际 ${buf.byteLength} 字节` },
+        { status: 500 }
+      );
+    }
+
+    return new Response(buf, {
       headers: {
         "Content-Type": "application/octet-stream",
+        "Content-Length": String(buf.byteLength),
         "Cache-Control": "public, max-age=31536000",
       },
     });
@@ -1113,10 +1164,12 @@ async function handleWsUpload(
     totalSize: 0,
     volumeIndex: 0,
     received: 0,
+    lastProgressBytes: 0,
     closed: false,
     flushing: false,
     drain: false,
-    fileIds: [] as { index: number; file_id: string }[],
+    flushError: false,
+    fileIds: [] as { index: number; file_id: string; size?: number }[],
   };
 
   // Keepalive: prevent CF "hung" detection during TG retry_after waits.
@@ -1170,13 +1223,14 @@ async function handleWsUpload(
     state.fileIds.push({
       index: state.volumeIndex * 100 + partIdx,
       file_id: result.file_id,
+      size: merged.size,
     });
   };
 
   const scheduleFlush = () => {
     if (state.closed) return;
     if (state.chunks.length === 0) {
-      if (state.drain) {
+      if (state.drain && !state.flushError) {
         console.log(`[WS v${state.volumeIndex}] done: received=${(state.received/1048576).toFixed(1)}MB expected=${(state.totalSize/1048576).toFixed(1)}MB flushCount=${state.fileIds.length}`);
         server.send(JSON.stringify({ type: "volume_ok", volume: state.volumeIndex, fileIds: state.fileIds, received: state.received }));
         state.closed = true;
@@ -1197,10 +1251,16 @@ async function handleWsUpload(
 
     state.flushing = true;
     setTimeout(async () => {
-      try { await flush(); } catch {} finally {
+      try { await flush(); } catch (e) {
+        console.error(`[WS v${state.volumeIndex}] flush error: ${(e as Error).message}`);
+        state.flushError = true;
+        try { server.send(JSON.stringify({ type: "error", error: (e as Error).message })); } catch {}
+        try { server.close(); } catch {}
+        return;
+      } finally {
         (state as any)._lastFlushTime = Date.now();
         state.flushing = false;
-        scheduleFlush();
+        if (!state.flushError) scheduleFlush();
       }
     }, 0);
   };
@@ -1267,17 +1327,22 @@ async function handleWsUpload(
     }
 
     if (state.totalSize > 0) {
-      const pct = Math.min(
-        99,
-        Math.round((state.received / state.totalSize) * 100)
-      );
-      server.send(
-        JSON.stringify({
-          type: "progress",
-          percent: pct,
-          mb: (state.received / 1048576).toFixed(1),
-        })
-      );
+      // Throttle progress to ~every 2MB (was per 1MB frame) to reduce
+      // per-frame CPU/WS chatter on large volumes.
+      if (state.received - state.lastProgressBytes >= 2 * 1024 * 1024) {
+        state.lastProgressBytes = state.received;
+        const pct = Math.min(
+          99,
+          Math.round((state.received / state.totalSize) * 100)
+        );
+        server.send(
+          JSON.stringify({
+            type: "progress",
+            percent: pct,
+            mb: (state.received / 1048576).toFixed(1),
+          })
+        );
+      }
     }
   });
 
@@ -1546,7 +1611,12 @@ async function handleWsDownload(
 }
 
 /**
- * Read entire Telegram CDN stream into memory, then send as ONE binary frame.
+ * Stream Telegram CDN body to the client as binary WS frames, segment by
+ * segment (each read segment is one frame). Avoids buffering the whole chunk
+ * in memory (old code held ~2× chunk size — up to ~40MB under concurrent
+ * downloads, near the 128MB/isolate limit); memory stays O(read segment size).
+ * The caller sends a `progress` message after this returns, which marks the
+ * chunk boundary — segments before it belong to the same chunk.
  */
 async function streamChunkToWs(
   body: ReadableStream<Uint8Array>,
@@ -1554,26 +1624,16 @@ async function streamChunkToWs(
   closed: { value: boolean }
 ): Promise<number> {
   const reader = body.getReader();
-  const parts: Uint8Array[] = [];
   let total = 0;
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done || closed.value) break;
-      parts.push(value);
+      server.send(value);
       total += value.byteLength;
     }
   } finally {
     reader.releaseLock();
-  }
-  if (total > 0 && !closed.value) {
-    const merged = new Uint8Array(total);
-    let offset = 0;
-    for (const p of parts) {
-      merged.set(p, offset);
-      offset += p.byteLength;
-    }
-    server.send(merged);
   }
   return total;
 }

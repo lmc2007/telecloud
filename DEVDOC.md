@@ -179,13 +179,13 @@ FileManager (状态管理 + 布局编排)
 ├── UploadZone       # 拖拽上传 + WS/HTTP 双模式
 ├── TransferManager  # 右下角传输进度浮窗
 ├── ContextMenu      # 右键菜单 (单选:重命名/预览/下载/分享/移动/删除, 多选:下载/分享/移动/删除)
-├── ShareModal       # 分享弹窗 (支持单文件/多文件批量分享)
+├── ShareModal       # 分享弹窗 (支持文件/文件夹/批量分享)
 ├── RenameModal      # 重命名弹窗
 ├── MoveModal        # 移动到弹窗 (支持批量移动+结果展示)
 ├── SettingsModal    # 设置弹窗（个人信息 + 改密码）
 ├── TrashPage        # 回收站页面
 ├── SharesPage       # 我的分享页面 (显示文件数量)
-└── ShareAccessPage  # 公开分享访问页 (/s/:token, 支持多文件列表+全部下载.zip)
+└── ShareAccessPage  # 公开分享访问页 (/s/:token, 支持文件列表/文件夹浏览+全部下载.zip)
 ```
 
 ### 存储空间进度条
@@ -340,73 +340,13 @@ D1 `files.created_at` 列为 TEXT，存储 epoch 毫秒数字。查询时用 `pa
 
 ## 上传架构
 
-### 前端排队机制
+> ⚠️ **以下为旧版概要。当前真实逻辑（流式 sendDocument、complete 零子请求、双层完整性校验等）见 [UPLOAD_DOWNLOAD_ARCH.md](./UPLOAD_DOWNLOAD_ARCH.md)。**
 
-多文件拖拽上传时，前端采用**串行队列**：所有文件立即注册到 TransferManager 显示为 `pending`，然后逐个上传。只有当前文件完成后才启动下一个。
+- **≤10MB**：HTTP multipart 直传 → 一个 TG 消息
+- **>10MB ≤100MB**：Blob.slice(10MB) → 多条 TG 消息 + JSON record
+- **>100MB**：前排 45MB 卷 → WebSocket → Worker 10MB flush → TG → `/complete`
 
-```ts
-// UploadZone.tsx — addFiles()
-// 1. 全部注册：addTransfer({ status: "pending" })
-// 2. 串行执行：for (const t of tasks) await uploadFile(t)
-// 3. uploadHttp/uploadWs 内部自动 set status "transferring"
-```
-
-**原因**：并行上传会同时向 TG 同一群组发送大量 `sendDocument`，触发 20 条/分钟频率限制 → 429 `retry_after` → Worker 30s 超时 → 503。
-
-### WebSocket 分卷
-
-### 上传完成：chunk size 解析
-
-上传完成（`handleUploadComplete`）时，分 6 批（每批 10 并发）调用 Telegram `getFile` API 获取每个 chunk 的真实 `file_size`，在 `setFileMeta` 之前写入 KV+D1。不再依赖异步 `ctx.waitUntil` 回填。
-
-### 前端分卷
-
-| 参数 | 值 |
-|---|---|
-| 分卷大小 | 45MB |
-| 帧大小 | 256KB |
-| 发送间隔 | 65ms (~4MB/s) |
-| 并发 | 每批 2 卷 |
-| 心跳 | 15s ping / 60s 超时 |
-| 失败重试 | 每卷 1 次，间隔 2s |
-
-### 每卷流程
-
-```
-前端 WS 连接 → {type:"meta", filename, totalSize, volumeIndex}
-          ← {type:"ready"}
-          → 256KB binary × N (直到卷大小)
-          ← {type:"progress", percent, mb}
-          → {type:"volume_done"}
-          ← {type:"volume_ok", fileIds, received}
-前端验证: received == 预期大小 && fileIds 无非空
-```
-
-### 服务端 flush 机制
-
-```
-数据到达 → chunks 累积 → bytes >= 5MB → scheduleFlush
-                                              ↓ setTimeout(0)
-                                           flush → splice(0) 取所有chunks
-                                              ↓ new Blob → sendDocument → Telegram
-                                              ↓ 完成后 scheduleFlush 再检查
-                                          
-volume_done 到达 → state.drain = true → scheduleFlush
-                                              ↓ chunks 为空 && drain → volume_ok
-```
-
-关键点：
-- **5MB 阈值**：单次 flush 控制在 ~5-16MB，避免单次上传过大超时
-- **setTimeout(0)**：每次 flush 后 yield 控制权，防止 Cloudflare "Hung" 检测
-- **drain 模式**：无视 5MB 阈值，强制排空所有剩余数据后才发 volume_ok
-- **splice(0) 原子取**：瞬间取走所有 chunks，新数据安全进入下一轮
-
-### 文件存储策略
-
-- **≤10MB**：HTTP multipart 直传（`/api/files/upload`）→ sendDocument → 一个 TG 消息
-- **>10MB ≤100MB**：Worker 内部 Blob.slice(10MB) → 多条 TG msg + 一条 JSON record → KV
-- **>100MB**：前排分 45MB 卷 → WebSocket → Worker 10MB flush → TG
-  → 全部卷完成 → POST `/api/files/upload/complete` → record + KV
+前端排队串行上传，避免多文件并发触发 20 条/分钟频率限制。WS 分卷参数：256KB 帧、65ms 间隔、2 卷并发、15s 心跳。详见上述架构文档。
 
 ### Telegram 消息 Caption
 
@@ -417,32 +357,18 @@ volume_done 到达 → state.drain = true → scheduleFlush
 
 ---
 
+
 ## 下载架构
 
-> **分块下载**：`GET /api/files/:id/chunks` 返回的响应中 `content-type` 为 JSON（仅元数据），实际文件内容在各 `/chunk/:index` 端点返回。
-> **Token 刷新**：`handleDownload` 和 `downloadFileBlob` 使用 `api.rawFetch`（自动 401 刷新），避免大文件下载过程中 Token 过期。
+> ⚠️ **以下为旧版概要。当前真实逻辑（/chunk/:index 字节校验、前端双层校验等）见 [UPLOAD_DOWNLOAD_ARCH.md](./UPLOAD_DOWNLOAD_ARCH.md)。**
 
-### 小文件 (`is_chunks=false`)
-GET `/api/files/:id/download` → Worker → getFile → getFileStream → 流式转发 Telegram CDN
-Content-Disposition: image/video/audio → inline，其他 → attachment
+- **小文件** (`is_chunks=false`)：`GET /api/files/:id/download` → 流式转发 TG CDN。图片/视频/音频 `Content-Disposition: inline`，其他 `attachment`
+- **大文件** (`is_chunks=true`)：获取 chunk 元数据 → 串行下载 `/chunk/:index`（失败重试 3 次，指数退避）→ Blob 拼接
+- **流式合并** (`streamMergedDownload`)：用于 `/download` Range 请求。惰性模式 >20 chunk 时按需解析
+- **轻量 Range** (`serveChunkRange`)：用于 `/stream` 预览，绕过重流逻辑直接定位 chunk 提取字节范围
+- **批量下载**：`downloadFileBlob` + JSZip 打包 `.zip`
 
-### 大文件 (`is_chunks=true`)
-1. GET `/api/files/:id/chunks` → chunk 元数据列表
-2. 串行下载每个 chunk：GET `/api/files/:id/chunk/:index`
-   - 优先用 KV 缓存的 file_path → getFileStream
-   - 缓存过期 → getFile 刷新 file_path → 重试
-3. 每个 chunk 失败重试 3 次，指数退避 1s/2s/4s + 随机抖动
-4. Blob 拼接 → 浏览器下载
-
-### 批量下载 (`downloadFileBlob` + JSZip)
-
-多选下载时调用 `downloadFileBlob(item)`（`handleDownload` 共享的逻辑），逐个获取 Blob → JSZip 打包为 `.zip` → 触发浏览器下载。`downloadFileBlob` 接受可选的 `onChunk` 回调用于进度上报。
-
-### 流式合并 (`streamMergedDownload`)
-用于 `/download` 端点的 Range 请求。惰性模式：chunks > 20 时不预解析全部 file_path，改为 pull() 内按需解析 + 预取下一个 chunk。
-
-### 轻量 Range (`serveChunkRange`)
-用于 `/stream` 预览端点。绕过 streamMergedDownload 的重逻辑，直接定位 chunk → 下载 → 提取目标字节范围。见 [预览功能](#预览功能图片视频)。
+`downloadFileBlob` 和 `handleDownload` 使用 `api.rawFetch` 自动 401 刷新。
 
 ---
 
@@ -505,6 +431,33 @@ Content-Disposition: image/video/audio → inline，其他 → attachment
 
 前端的 `ShareAccessPage` 展示文件列表，每个文件独立预览/下载。多文件分享时额外显示 **"全部下载 (.zip)"** 按钮，使用 JSZip 逐个下载后打包为 ZIP 推送浏览器下载，带 500MB 警告和进度条。
 
+### 文件夹分享（动态实时同步）
+
+与多文件分享（静态快照）不同，文件夹分享**不拍快照**：每次访问分享链接时实时查询 D1，分享者对文件夹内文件的增删即时反映到分享页面。
+
+| 变更点 | 说明 |
+|--------|------|
+| `POST /shares` | 新增接受 `folder_id` 字段（与 `file_id`/`file_ids` 互斥），在 KV 存 `target_type: "folder"` + `target_id` |
+| `GET /s/:token` | 文件夹分享返回 `is_folder: true`、`folder_name`、`breadcrumbs`（面包屑路径）、`files` 含 `type: "file"\|"folder"` 字段 |
+| `GET /s/:token?folder_id=` | 浏览子文件夹，后端验证子文件夹是分享根文件夹的后代（防止越权） |
+| 下载/chunk/stream | 新增 `folder_id` 参数，配合 `file_index` 定位子文件夹中的文件 |
+| `GET /shares` (列表) | 文件夹分享显示 "文件夹: xxx"，`file_type: "folder"` |
+
+**核心后端逻辑**：
+- `resolveFolderContents(env, folderId, userId)`：D1 查询 `WHERE parent_kv_id=? AND deleted=0 ORDER BY type DESC, name ASC`，实时反映当前文件夹内容
+- `resolveShareFileByIndex(env, shareInfo, fileIndex, folderId?)`：统一文件/文件夹分享的文件索引解析，文件夹分享从 D1 动态查询
+- `getFolderBreadcrumbs(env, folderId)`：沿 `parent_id` 链向上遍历（最多 20 层），生成面包屑路径
+
+**安全措施**：
+- 子文件夹浏览时验证 `user_id` 匹配分享者 + 沿 `parent_id` 链确认是分享根文件夹的后代
+- 批量下载前检查 `max_downloads` 配额（前端提示超出限制）
+
+**前端适配**：
+- `ShareAccessPage` 新增面包屑导航、文件夹可点击进入子文件夹、全部下载只打包当前层级文件（跳过子文件夹）
+- `ContextMenu` 文件夹也显示"分享"菜单项（不再仅限 `type === "file"`）
+- `FileManager.handleShareSelected` 智能过滤：单选文件夹 → 文件夹分享，多选 → 仅文件
+- `ShareModal` 检测 `isFolder` → 标题 "分享文件夹"，发送 `folder_id`
+
 ---
 
 ## 批量操作（多选）
@@ -514,7 +467,7 @@ FileTable 和 FileGrid 均支持复选框多选。选中多个文件后右键菜
 | 操作 | 实现 |
 |------|------|
 | 下载 N 项 | 逐个下载文件（`downloadFileBlob` → `api.rawFetch`）→ JSZip 前端打包 `.zip` → 自动下载 |
-| 分享 N 项 | 调用 `POST /shares`（`file_ids` 数组），生成统一分享链接 |
+| 分享 N 项 | 单选文件夹 → `folder_id`；多选文件 → `file_ids` 数组 |
 | 移动到 N 项 | 逐个调用 `PUT /files/:id/move`，结果列表展示成功/失败 |
 | 删除 N 项 | 逐个调用 `DELETE /files/:id` |
 
@@ -531,7 +484,7 @@ FileTable 和 FileGrid 均支持复选框多选。选中多个文件后右键菜
 
 ## ApiClient — `rawFetch` 方法
 
-`frontend/src/lib/api.ts` 中 `ApiClient` 新增 `rawFetch` 方法，用大文件下载场景解决 Token 过期导致 401 的问题。
+`frontend/src/lib/api.ts` 中 `ApiClient` 的 `rawFetch` 方法用于大文件下载场景，解决 Token 过期导致 401 的问题。
 
 ```ts
 // 与 request() 共享同一套 tryRefresh 逻辑
@@ -561,7 +514,7 @@ async rawFetch(path: string, options?: {
 
 > **注意**：以上是 Cloudflare Workers 平台限制。实际更容易触发的瓶颈是 **Telegram Bot API 的频率限制**，见下文。
 
-##TODO: 多用户并发 & Telegram 频率限制
+## 多用户并发 & Telegram 频率限制
 
 ### Telegram Bot API 限制
 
@@ -661,14 +614,14 @@ Worker 的 WebSocket 路由在 `index.ts` 中同时兼容两种 path 格式：
 ### 分享
 | 方法 | 路径 | 认证 | 说明 |
 |---|---|---|---|
-| POST | `/api/shares` | JWT | 创建分享，支持 `file_id` (单文件) 或 `file_ids` (多文件批量) |
-| GET | `/api/shares` | JWT | 我的分享列表，多文件显示 "N 个文件" |
+| POST | `/api/shares` | JWT | 创建分享，支持 `file_id` (单文件) / `file_ids` (多文件) / `folder_id` (文件夹) |
+| GET | `/api/shares` | JWT | 我的分享列表，多文件显示 "N 个文件"，文件夹显示 "文件夹: xxx" |
 | DELETE | `/api/shares/:id` | JWT | 取消分享 |
-| GET | `/api/s/:token` | ❌ | 访问分享，返回 `files[]` 数组 |
-| POST | `/api/s/:token/download` | ❌ (密码可选) | 下载文件，body 可带 `file_index` |
-| GET | `/api/s/:token/chunks` | ❌ (密码可选) | 分块元数据，query `?file_index=` |
-| GET | `/api/s/:token/chunk/:index` | ❌ (密码可选) | 单 chunk 下载，query `?file_index=` |
-| GET | `/api/s/:token/stream` | ❌ (密码可选) | 预览流，不计下载次数，query `?file_index=` |
+| GET | `/api/s/:token` | ❌ | 访问分享，返回 `files[]`；文件夹分享返回 `is_folder`+`breadcrumbs`，支持 `?folder_id=` 子文件夹浏览 |
+| POST | `/api/s/:token/download` | ❌ (密码可选) | 下载文件，body 可带 `file_index` + `folder_id` |
+| GET | `/api/s/:token/chunks` | ❌ (密码可选) | 分块元数据，query `?file_index=` + `?folder_id=` |
+| GET | `/api/s/:token/chunk/:index` | ❌ (密码可选) | 单 chunk 下载，query `?file_index=` + `?folder_id=` |
+| GET | `/api/s/:token/stream` | ❌ (密码可选) | 预览流，不计下载次数，query `?file_index=` + `?folder_id=` |
 
 ### 用户
 | 方法 | 路径 | 认证 |
@@ -716,9 +669,11 @@ Worker 的 WebSocket 路由在 `index.ts` 中同时兼容两种 path 格式：
 
 `UploadZone` 组件在 `useEffect([], [])` 中注册拖拽事件，`onDrop` 闭包中 `currentFolder` 被冻结为挂载时的值。**修复**：使用 `useRef(currentFolder)` + 每次渲染 `folderRef.current = currentFolder`，上传路径从 ref 读取。
 
-### 分享访问页面密码流程
+### 分享访问页面
 
 `ShareAccessPage` 先 `GET /s/:token`（不带密码）→ 若返回 `{ need_password: true }` → 展示密码输入 UI → 用户提交后 `GET /s/:token?pw=xxx` → 获取完整文件信息 → 正常下载流程。
+
+**文件夹分享浏览流程**：若 `data.is_folder` → 面包屑导航（顶部层级路径可点击跳回）→ 文件夹条目点击进入子文件夹（`?folder_id=`）→ 文件条目正常下载/预览。下载/stream 请求均携带 `folder_id` 参数定位当前文件夹。全部下载 (.zip) 只打包当前层级文件，跳过子文件夹。批量下载前检查 `max_downloads` 配额。详见 [分享功能 > 文件夹分享](#文件夹分享动态实时同步)。
 
 ### 存储空间进度条
 

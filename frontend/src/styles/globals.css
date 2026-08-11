@@ -2,206 +2,301 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────────
+   iCloud 风格双主题
+   :root = 浅色，.dark = 暗色
+   组件全部使用语义变量，切换主题只需改 html class
+   ───────────────────────────────────────── */
 :root {
-  /* 123云盘风格设计令牌 */
-  --brand-blue: #1677FF;
-  --brand-blue-hover: #4096FF;
-  --brand-blue-active: #0958D9;
-  --brand-blue-light: #E8F3FF;
-  --brand-red: #F53F3F;
-  --brand-red-hover: #F76560;
-  --brand-green: #00B578;
-  --brand-orange: #FF8F1F;
-  --bg-primary: #F5F6F7;
-  --bg-secondary: #FAFBFC;
-  --bg-white: #FFFFFF;
-  --text-primary: #1F2329;
-  --text-secondary: #646A73;
-  --text-tertiary: #8F959E;
-  --text-disabled: #BCC0C6;
-  --border-light: #E5E6EB;
-  --border-default: #DCDEE0;
+  --bg: #F5F5F7;
+  --bg-elev: #FFFFFF;
+  --bg-glass: rgba(255,255,255,0.7);
+  --bg-input: rgba(0,0,0,0.05);
+  --bg-hover: rgba(0,0,0,0.05);
+  --bg-selected: rgba(0,113,227,0.1);
+  --text: #1D1D1F;
+  --text-secondary: #86868B;
+  --text-tertiary: #AEAEB2;
+  --text-disabled: #D1D1D6;
+  --border: rgba(0,0,0,0.08);
+  --border-strong: rgba(0,0,0,0.12);
+  --accent: #0071E3;
+  --accent-hover: #0077ED;
+  --accent-light: rgba(0,113,227,0.1);
+  --accent-text: #0071E3;
+  --red: #FF3B30;
+  --red-hover: #FF453A;
+  --green: #34C759;
+  --orange: #FF9500;
+  --purple: #AF52DE;
+  --yellow: #FFD60A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.1);
+  --glow: 0 0 0 4px rgba(0,113,227,0.15);
+  --icon-default: #8E8E93;
+  --icon-folder: #FFB020;
+  --icon-doc: #0071E3;
+  --icon-image: #7C5CFC;
+  --icon-video: #FF3B30;
+  --icon-audio: #00B578;
+  --icon-share: #FF9500;
+  --icon-trash: #8E8E93;
+  --tile-folder: linear-gradient(135deg, rgba(255,214,10,0.18), rgba(255,176,32,0.1));
+  --tile-doc: linear-gradient(135deg, rgba(10,132,255,0.16), rgba(0,113,227,0.08));
+  --tile-image: linear-gradient(135deg, rgba(175,82,222,0.16), rgba(124,92,252,0.08));
+  --tile-video: linear-gradient(135deg, rgba(255,69,58,0.15), rgba(255,59,48,0.08));
+  --tile-audio: linear-gradient(135deg, rgba(48,209,88,0.16), rgba(0,181,120,0.08));
+  --tile-archive: linear-gradient(135deg, rgba(255,159,10,0.16), rgba(255,149,0,0.08));
+  --tile-generic: linear-gradient(135deg, rgba(142,142,147,0.14), rgba(174,174,178,0.07));
+  --watermark: rgba(0,113,227,0.05);
+  --toggle-track: rgba(120,120,128,0.32);
+  --toggle-thumb: #FFFFFF;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+.dark {
+  --bg: #1C1C1E;
+  --bg-elev: #2C2C2E;
+  --bg-glass: rgba(44,44,46,0.65);
+  --bg-input: rgba(118,118,128,0.18);
+  --bg-hover: rgba(255,255,255,0.06);
+  --bg-selected: rgba(10,132,255,0.18);
+  --text: #FFFFFF;
+  --text-secondary: #EBEBF5;
+  --text-tertiary: #8E8E93;
+  --text-disabled: #636366;
+  --border: rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.12);
+  --accent: #0A84FF;
+  --accent-hover: #409CFF;
+  --accent-light: rgba(10,132,255,0.18);
+  --accent-text: #409CFF;
+  --red: #FF453A;
+  --red-hover: #FF6961;
+  --green: #30D158;
+  --orange: #FF9F0A;
+  --purple: #BF5AF2;
+  --yellow: #FFD60A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow: 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  --glow: 0 0 0 4px rgba(10,132,255,0.3);
+  --icon-default: #98989D;
+  --icon-folder: #FFD60A;
+  --icon-doc: #0A84FF;
+  --icon-image: #BF5AF2;
+  --icon-video: #FF453A;
+  --icon-audio: #30D158;
+  --icon-share: #FF9F0A;
+  --icon-trash: #98989D;
+  --tile-folder: linear-gradient(135deg, rgba(255,214,10,0.16), rgba(255,176,32,0.06));
+  --tile-doc: linear-gradient(135deg, rgba(10,132,255,0.18), rgba(64,156,255,0.06));
+  --tile-image: linear-gradient(135deg, rgba(191,90,242,0.16), rgba(124,92,252,0.06));
+  --tile-video: linear-gradient(135deg, rgba(255,69,58,0.16), rgba(255,59,48,0.06));
+  --tile-audio: linear-gradient(135deg, rgba(48,209,88,0.16), rgba(0,181,120,0.06));
+  --tile-archive: linear-gradient(135deg, rgba(255,159,10,0.16), rgba(255,149,0,0.06));
+  --tile-generic: linear-gradient(135deg, rgba(152,152,157,0.16), rgba(142,142,147,0.06));
+  --watermark: rgba(10,132,255,0.06);
+  --toggle-track: rgba(120,120,128,0.4);
+  --toggle-thumb: #FFFFFF;
 }
 
-html {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "kern" 1, "liga" 1;
+/* 兼容旧变量映射（跟随主题） */
+.dark,
+:root {
+  --apple-bg: var(--bg);
+  --apple-card: var(--bg-elev);
+  --apple-glass: var(--bg-glass);
+  --apple-accent: var(--accent);
+  --apple-accent-hover: var(--accent-hover);
+  --apple-accent-light: var(--accent-light);
+  --apple-red: var(--red);
+  --apple-green: var(--green);
+  --apple-orange: var(--orange);
+  --apple-text: var(--text);
+  --apple-text-secondary: var(--text-secondary);
+  --apple-text-tertiary: var(--text-tertiary);
+  --apple-border: var(--border);
+  --apple-border-strong: var(--border-strong);
+  --apple-shadow-sm: var(--shadow-sm);
+  --apple-shadow: var(--shadow);
+  --apple-shadow-lg: var(--shadow-lg);
+  --apple-glow: var(--glow);
+  --brand-blue: var(--accent);
+  --brand-blue-hover: var(--accent-hover);
+  --brand-blue-light: var(--accent-light);
+  --brand-red: var(--red);
+  --brand-red-hover: var(--red-hover);
+  --brand-green: var(--green);
+  --brand-orange: var(--orange);
+  --bg-primary: var(--bg);
+  --bg-secondary: var(--bg-input);
+  --bg-card: var(--bg-elev);
+  --bg-white: var(--bg-elev);
+  --bg-input: var(--bg-input);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-secondary);
+  --text-tertiary: var(--text-tertiary);
+  --text-disabled: var(--text-disabled);
+  --border-light: var(--border);
+  --border-default: var(--border-strong);
 }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
-    "Microsoft YaHei", "Helvetica Neue", "Segoe UI", sans-serif;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "PingFang SC", sans-serif;
+  background: var(--bg);
+  color: var(--text);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.47059;
+  letter-spacing: -0.022em;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.18);
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.5); }
 
-::selection {
-  background: rgba(22, 119, 255, 0.15);
-  color: var(--text-primary);
-}
+::selection { background: var(--accent-light); color: var(--text); }
 
-/* ===== 123云盘风格组件类 ===== */
 @layer components {
-  /* 主按钮：蓝色实心 */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-1.5
-      px-4 py-1.5 text-[13px] font-medium
-      text-white bg-[var(--brand-blue)]
-      rounded-md transition-all duration-150
-      hover:bg-[var(--brand-blue-hover)]
-      active:bg-[var(--brand-blue-active)]
-      active:scale-[0.98]
-      disabled:opacity-50 disabled:pointer-events-none
-      select-none;
+      px-5 py-2 text-[14px] font-medium text-white
+      rounded-lg transition-all duration-200
+      active:scale-[0.97] select-none;
+    background: var(--accent);
+    letter-spacing: -0.01em;
   }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:focus-visible { box-shadow: var(--glow); }
+  .btn-primary:disabled { opacity: 0.4; pointer-events: none; }
 
-  /* 次要按钮：白色背景 + 边框 */
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-1.5
-      px-4 py-1.5 text-[13px] font-medium
-      text-[var(--text-primary)] bg-white
-      rounded-md transition-all duration-150
-      border border-[var(--border-default)]
-      hover:border-[var(--brand-blue)]
-      hover:text-[var(--brand-blue)]
-      active:scale-[0.98]
-      disabled:opacity-50 disabled:pointer-events-none
-      select-none;
+      px-5 py-2 text-[14px] font-medium rounded-lg
+      transition-all duration-200 active:scale-[0.97] select-none;
+    background: var(--bg-hover);
+    color: var(--text);
   }
+  .btn-secondary:hover { background: var(--border-strong); }
 
-  /* 幽灵按钮：图标/文字按钮 */
   .btn-ghost {
     @apply inline-flex items-center justify-center
-      p-1.5 rounded-md transition-colors duration-150
-      text-[var(--text-tertiary)]
-      hover:bg-black/[0.04] hover:text-[var(--text-primary)]
-      active:bg-black/[0.08]
-      select-none;
+      p-2 rounded-lg transition-colors duration-150
+      text-[var(--text-tertiary)] select-none;
   }
+  .btn-ghost:hover { background: var(--bg-hover); color: var(--text); }
 
-  /* 危险按钮 */
   .btn-danger {
     @apply inline-flex items-center justify-center gap-1.5
-      px-4 py-1.5 text-[13px] font-medium
-      text-white bg-[var(--brand-red)]
-      rounded-md transition-all duration-150
-      hover:bg-[var(--brand-red-hover)]
-      active:scale-[0.98]
-      disabled:opacity-50 disabled:pointer-events-none
-      select-none;
+      px-5 py-2 text-[14px] font-medium text-white
+      rounded-lg transition-all duration-200 active:scale-[0.97] select-none;
+    background: var(--red);
   }
+  .btn-danger:hover { background: var(--red-hover); }
 
-  /* 标准输入框 */
   .input-primary {
-    @apply w-full px-3 py-2 text-[13px]
-      bg-white rounded-md outline-none
-      transition-all duration-150
-      placeholder:text-[var(--text-disabled)];
-    border: 1px solid var(--border-default);
+    @apply w-full px-4 py-2.5 text-[14px] rounded-lg outline-none
+      transition-all duration-150;
+    background: var(--bg-input);
+    border: 1px solid transparent;
+    color: var(--text);
+    letter-spacing: -0.01em;
   }
+  .input-primary::placeholder { color: var(--text-tertiary); }
   .input-primary:focus {
-    border-color: var(--brand-blue);
-    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+    background: var(--bg-elev);
+    border-color: var(--accent);
+    box-shadow: var(--glow);
   }
 
-  /* 侧边栏导航项 */
   .sidebar-nav-item {
-    @apply w-full flex items-center gap-2.5 px-4 py-2 text-[13px]
-      transition-colors duration-100 cursor-pointer select-none
-      text-[var(--text-secondary)] hover:bg-[rgba(0,0,0,0.03)]
-      hover:text-[var(--text-primary)];
-    border-left: 3px solid transparent;
+    @apply w-full flex items-center gap-3 px-3 py-[7px] text-[13px]
+      rounded-lg transition-all duration-150 cursor-pointer select-none;
+    color: var(--text);
   }
+  .sidebar-nav-item:hover { background: var(--bg-hover); }
   .sidebar-nav-item.active {
-    @apply text-[var(--brand-blue)] font-medium;
-    background: rgba(22, 119, 255, 0.06);
-    border-left-color: var(--brand-blue);
+    background: var(--accent-light);
+    color: var(--accent-text);
+    font-weight: 500;
   }
 
-  /* 表格 */
-  .data-table {
-    @apply w-full text-[13px];
-  }
-  .data-table thead {
-    @apply sticky top-0 z-10;
-    background: var(--bg-secondary);
-  }
+  .data-table { @apply w-full text-[13px]; }
+  .data-table thead { @apply sticky top-0 z-10; background: var(--bg-glass); backdrop-filter: blur(12px); }
   .data-table th {
     @apply text-left px-4 py-2.5 text-[12px] font-medium
-      text-[var(--text-secondary)] cursor-pointer
-      hover:text-[var(--text-primary)] select-none
-      border-b border-[var(--border-light)];
+      cursor-pointer select-none border-b;
+    color: var(--text-tertiary);
+    border-color: var(--border);
   }
+  .data-table th:hover { color: var(--text); }
   .data-table td {
-    @apply px-4 py-[9px] border-b border-[rgba(0,0,0,0.04)];
+    @apply px-4 py-[10px] border-b;
+    color: var(--text);
+    border-color: var(--border);
   }
-  .data-table tbody tr {
-    @apply transition-colors duration-75;
-    background: var(--bg-white);
-  }
-  .data-table tbody tr:nth-child(even) {
-    background: var(--bg-secondary);
-  }
-  .data-table tbody tr:hover {
-    background: rgba(22, 119, 255, 0.04);
-  }
-  .data-table tbody tr.selected {
-    background: rgba(22, 119, 255, 0.08);
-  }
+  .data-table tbody tr { @apply transition-colors duration-100; }
+  .data-table tbody tr:hover { background: var(--bg-hover); }
+  .data-table tbody tr.selected { background: var(--accent-light); }
 
-  /* 卡片 */
   .card {
-    @apply bg-white rounded-lg border border-[var(--border-light)]
-      transition-all duration-150;
+    @apply rounded-xl transition-all duration-200;
+    background: var(--bg-elev);
+    box-shadow: var(--shadow-sm);
   }
-  .card-hover:hover {
-    @apply border-[var(--border-default)];
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  }
+  .card-hover:hover { box-shadow: var(--shadow); }
 
-  /* 模态框 */
   .modal-overlay {
     @apply fixed inset-0 z-50 flex items-center justify-center;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(6px);
   }
   .modal-panel {
-    @apply relative bg-white rounded-lg shadow-lg
-      border border-[var(--border-light)] overflow-hidden;
+    @apply relative rounded-xl shadow-lg overflow-hidden;
+    background: var(--bg-glass);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--border);
   }
 
-  /* 标签页 */
   .tab-item {
     @apply px-4 py-2.5 text-[13px] transition-colors
-      text-[var(--text-secondary)] cursor-pointer select-none
-      border-b-2 border-transparent;
+      cursor-pointer select-none border-b-2 border-transparent;
+    color: var(--text-secondary);
   }
-  .tab-item.active {
-    @apply text-[var(--brand-blue)] font-medium;
-    border-bottom-color: var(--brand-blue);
+  .tab-item.active { color: var(--accent-text); border-bottom-color: var(--accent); }
+
+  .context-menu {
+    @apply rounded-xl py-1 overflow-hidden;
+    background: var(--bg-glass);
+    backdrop-filter: blur(24px);
+    border: 0.5px solid var(--border);
+    box-shadow: var(--shadow-lg);
   }
+  .context-menu-item {
+    @apply w-full flex items-center gap-3 px-4 py-2 text-[13px] transition-colors;
+    color: var(--text);
+  }
+  .context-menu-item:hover { background: var(--accent-light); }
+  .context-menu-item.danger { color: var(--red); }
+  .context-menu-item.danger:hover { background: rgba(255,69,58,0.12); }
+
+  /* 主题切换开关 */
+  .theme-toggle {
+    @apply relative w-10 h-6 rounded-full transition-colors duration-300 cursor-pointer;
+    background: var(--toggle-track);
+  }
+  .theme-toggle::after {
+    content: "";
+    @apply absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform duration-300;
+    background: var(--toggle-thumb);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .theme-toggle.dark-mode::after { transform: translateX(16px); }
 }

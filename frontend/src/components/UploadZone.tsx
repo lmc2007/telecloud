@@ -33,10 +33,10 @@ export function UploadZone() {
     return () => { window.removeEventListener("dragenter", onDragEnter); window.removeEventListener("dragleave", onDragLeave); window.removeEventListener("dragover", onDragOver); window.removeEventListener("drop", onDrop); };
   }, []);
 
-  const VOLUME = 45 * 1024 * 1024, BUF = 256 * 1024, INT = 65;
+  const VOLUME = 45 * 1024 * 1024, BUF = 1024 * 1024, INT = 65;
   const WS = (api: string) => api;
 
-  const wsVol = (file: File, vi: number, s: number, e: number, onProg: (bytes: number, ts: number) => void): Promise<{ ids: { index: number; file_id: string }[]; received: number }> =>
+  const wsVol = (file: File, vi: number, s: number, e: number, onProg: (bytes: number, ts: number) => void): Promise<{ ids: { index: number; file_id: string; size?: number }[]; received: number }> =>
     new Promise((resolve, reject) => {
       const url = `${WS(API_BASE)}/ws/upload?token=${encodeURIComponent(accessToken!)}${folderRef.current ? `&parent_id=${folderRef.current}` : ""}`;
       const ws = new WebSocket(url); ws.binaryType = "blob";
@@ -65,21 +65,31 @@ export function UploadZone() {
     const vols = Math.ceil(file.size / VOLUME);
     updateTransfer(tid, { status: "transferring", uploadedBytes: 0, chunksTotal: vols, chunksDone: 0 });
     try {
-      const all: { index: number; file_id: string }[] = [];
-      let doneVols = 0, totalBytes = 0;
-      const volWithRetry = async (i: number, vs: number, ve: number, maxRetry = 1): Promise<{ index: number; file_id: string }[]> => {
+      const all: { index: number; file_id: string; size?: number }[] = [];
+      let doneVols = 0, totalBytes = 0, maxReportedBytes = 0;
+      let globalChunkIdx = 0; // global chunk index across all volumes (each volume resets to 0)
+      const volWithRetry = async (i: number, vs: number, ve: number, maxRetry = 1): Promise<{ index: number; file_id: string; size?: number }[]> => {
         for (let attempt = 0; attempt <= maxRetry; attempt++) {
           try {
             let lastProgTs = 0;
             const r = await wsVol(file, i, vs, ve, (bytes, ts) => {
               if (ts - lastProgTs < 1000) return; lastProgTs = ts;
-              updateTransfer(tid, { uploadedBytes: totalBytes + (bytes - vs), progress: Math.round(((totalBytes + (bytes - vs)) / file.size) * 100) });
+              const cur = totalBytes + (bytes - vs);
+              if (cur > maxReportedBytes) {
+                maxReportedBytes = cur;
+                updateTransfer(tid, { uploadedBytes: cur, progress: Math.round((cur / file.size) * 100) });
+              }
             });
             const expSize = ve - vs;
             if (Math.abs(r.received - expSize) > 1024) throw new Error(`卷${i}字节不匹配`);
             if (r.ids.some(x => !x.file_id)) throw new Error(`卷${i}包含空file_id`);
             doneVols++; totalBytes += expSize;
-            return r.ids;
+            // Remap per-volume indices (0,1,2,...) to global indices so chunks are
+            // stored in correct byte order across all volumes.
+            const remapped = r.ids
+              .sort((a, b) => a.index - b.index)
+              .map(x => ({ index: globalChunkIdx++, file_id: x.file_id }));
+            return remapped;
           } catch (e) {
             if (attempt === maxRetry) throw e;
             await new Promise(r => setTimeout(r, 2000));
@@ -87,14 +97,11 @@ export function UploadZone() {
         }
         throw new Error("unreachable");
       };
-      for (let vi = 0; vi < vols; vi += 2) {
+      for (let vi = 0; vi < vols; vi++) {
         if (signal.aborted) throw new Error("已取消");
-        const b = [];
-        for (let i = vi; i < Math.min(vi + 2, vols); i++) {
-          const vs = i * VOLUME, ve = Math.min((i + 1) * VOLUME, file.size);
-          b.push(volWithRetry(i, vs, ve));
-        }
-        (await Promise.all(b)).forEach(r => all.push(...r));
+        const vs = vi * VOLUME, ve = Math.min((vi + 1) * VOLUME, file.size);
+        const r = await volWithRetry(vi, vs, ve);
+        all.push(...r);
         updateTransfer(tid, { progress: Math.round((totalBytes / file.size) * 100), uploadedBytes: totalBytes, chunksDone: doneVols, chunksTotal: vols });
       }
       if (totalBytes !== file.size) throw new Error(`数据丢失: 已传${(totalBytes/1048576).toFixed(1)}MB, 预期${(file.size/1048576).toFixed(1)}MB`);
@@ -104,7 +111,9 @@ export function UploadZone() {
       });
       const d = await res.json();
       if (!d.success) throw new Error(d.error || "完成失败");
-      updateTransfer(tid, { status: "done", progress: 100 }); fetchFiles();
+      updateTransfer(tid, { status: "done", progress: 100 });
+      // Brief delay to allow KV+D1 sync on server before fetching
+      setTimeout(() => fetchFiles(), 800);
     } catch (err) { if (!signal.aborted) updateTransfer(tid, { status: "error", error: err instanceof Error ? err.message : "上传失败" }); }
   };
 

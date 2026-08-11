@@ -13,6 +13,8 @@ export function ShareModal({ files, onClose }: { files: FileItem[]; onClose: () 
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
 
+  const isFolder = files.length === 1 && files[0].type === "folder";
+
   const handleCreate = async () => {
     if (files.length === 0) return;
     setCreating(true);
@@ -23,7 +25,11 @@ export function ShareModal({ files, onClose }: { files: FileItem[]; onClose: () 
       if (expireHours) body.expire_hours = expireHours;
       if (maxDownloads) body.max_downloads = maxDownloads;
 
-      if (files.length === 1) {
+      if (isFolder) {
+        // Folder share: send folder_id
+        if (!files[0].id) { setError("文件夹 ID 无效"); setCreating(false); return; }
+        body.folder_id = files[0].id;
+      } else if (files.length === 1) {
         if (!files[0].id) { setError("文件 ID 无效"); setCreating(false); return; }
         body.file_id = files[0].id;
       } else {
@@ -39,6 +45,10 @@ export function ShareModal({ files, onClose }: { files: FileItem[]; onClose: () 
   };
 
   const fileNames = files.map(f => f.name).join("、");
+  const title = isFolder ? "分享文件夹" : "分享文件";
+  const subtitle = isFolder
+    ? files[0].name
+    : files.length === 1 ? files[0].name : `${files.length} 个文件: ${fileNames}`;
 
   return (
     <AnimatePresence>
@@ -47,11 +57,11 @@ export function ShareModal({ files, onClose }: { files: FileItem[]; onClose: () 
           <div className="absolute inset-0" onClick={onClose} />
           <motion.div className="modal-panel w-full max-w-sm mx-4 p-6" initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} transition={{ duration: 0.2 }}>
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[15px] font-semibold text-[var(--text-primary)]">分享文件</h3>
+              <h3 className="text-[15px] font-semibold text-[var(--text-primary)]">{title}</h3>
               <button onClick={onClose} className="btn-ghost text-sm">✕</button>
             </div>
             <p className="text-[13px] text-[var(--text-secondary)] mb-5 truncate" title={fileNames}>
-              {files.length === 1 ? files[0].name : `${files.length} 个文件: ${fileNames}`}
+              {subtitle}
             </p>
             {shareUrl ? (
               <div className="space-y-4">

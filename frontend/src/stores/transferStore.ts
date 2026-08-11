@@ -19,6 +19,7 @@ export interface TransferItem {
   speed: number;
   error?: string;
   uploadedBytes?: number;
+  downloadedBytes?: number; // 下载：已下载字节数（用于进度显示 "已下载 X / 总 Y"）
   chunksTotal?: number;
   chunksDone?: number;
   abortController?: AbortController;

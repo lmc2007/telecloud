@@ -1,262 +1,243 @@
-import { useRef, useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
-import { Cloud, Shield, Zap, Share2, HardDrive, ArrowRight, ChevronDown } from 'lucide-react'
+import { motion, useScroll, useTransform, AnimatePresence, useInView } from 'framer-motion'
+import { Cloud, Shield, Zap, Share2, HardDrive, ArrowRight, Globe, Layers, ArrowUpRight } from 'lucide-react'
+import { ThemeToggle } from '../components/ThemeToggle'
 
-function FadeInSection({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
-  const ref = useRef(null)
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start 0.9', 'start 0.5'],
-  })
-  const opacity = useTransform(scrollYProgress, [0, 1], [0, 1])
-  const y = useTransform(scrollYProgress, [0, 1], [40, 0])
-
+function AmbientBg() {
   return (
-    <motion.div ref={ref} style={{ opacity, y }} transition={{ delay, duration: 0.7 }}>
-      {children}
-    </motion.div>
+    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+      <div className="absolute top-[-30%] left-1/2 -translate-x-1/2 w-[140%] h-[70%] rounded-full opacity-20"
+        style={{ background: 'radial-gradient(ellipse, var(--accent) 0%, transparent 70%)', filter: 'blur(80px)' }} />
+      <div className="absolute bottom-[-20%] left-[-10%] w-[60%] h-[50%] rounded-full opacity-10"
+        style={{ background: 'radial-gradient(ellipse, #5AC8FA 0%, transparent 70%)', filter: 'blur(60px)' }} />
+    </div>
+  )
+}
+
+function Reveal({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true, margin: '-100px' })
+  return (
+    <motion.div ref={ref} className={className}
+      initial={{ opacity: 0, y: 40 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.9, delay, ease: [0.16, 1, 0.3, 1] }}
+    >{children}</motion.div>
+  )
+}
+
+function TiltCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [r, setR] = useState({ x: 0, y: 0 })
+  const [h, setH] = useState(false)
+  return (
+    <div ref={ref} className={`relative ${className}`}
+      onMouseMove={e => {
+        const el = ref.current; if (!el) return
+        const rect = el.getBoundingClientRect()
+        setR({ x: ((e.clientY - rect.top) / rect.height - 0.5) * -6, y: ((e.clientX - rect.left) / rect.width - 0.5) * 6 })
+        setH(true)
+      }}
+      onMouseLeave={() => { setR({ x: 0, y: 0 }); setH(false) }}
+      style={{ transform: `perspective(1000px) rotateX(${r.x}deg) rotateY(${r.y}deg) ${h ? 'scale(1.02)' : ''}`, transition: 'transform 0.15s ease-out', transformStyle: 'preserve-3d' }}
+    >{children}</div>
   )
 }
 
 const features = [
-  { icon: HardDrive, title: '无限空间', desc: '基于 Telegram 的无限云存储，你的文件永远有地方存放。', accent: '#1677FF' },
-  { icon: Zap, title: '极速传输', desc: 'WebSocket 流式上传下载，全球 CDN 加速。', accent: '#FF8F1F' },
-  { icon: Shield, title: '安全可靠', desc: '端到端加密传输，JWT 认证，数据安全无忧。', accent: '#00B578' },
-  { icon: Share2, title: '轻松分享', desc: '一键生成链接，支持提取码和有效期设置。', accent: '#7C5CFC' },
+  { icon: HardDrive, title: '无限空间', desc: '分布式云端架构，数据永不丢失。', color: 'var(--accent)' },
+  { icon: Zap, title: '极速传输', desc: '流式引擎与全球加速，大文件秒传。', color: 'var(--orange)' },
+  { icon: Shield, title: '端到端安全', desc: '加密传输与认证，只有你能访问。', color: 'var(--green)' },
+  { icon: Share2, title: '智能分享', desc: '密码、有效期、下载次数，全权掌控。', color: 'var(--purple)' },
+  { icon: Layers, title: '批量管理', desc: '多选、打包下载、一键移动。', color: 'var(--red)' },
+  { icon: Globe, title: '随处访问', desc: 'PC、手机、平板，一个浏览器即可。', color: 'var(--accent)' },
 ]
 
 export function Landing() {
   const navigate = useNavigate()
-  const heroRef = useRef(null)
   const [splashDone, setSplashDone] = useState(false)
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ['start start', 'end start'],
-  })
+  const heroRef = useRef(null)
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] })
   const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
-  const heroY = useTransform(scrollYProgress, [0, 1], [0, 120])
-
-  useEffect(() => {
-    const timer = setTimeout(() => setSplashDone(true), 2200)
-    return () => clearTimeout(timer)
-  }, [])
+  const heroY = useTransform(scrollYProgress, [0, 1], [0, 60])
+  useEffect(() => { const t = setTimeout(() => setSplashDone(true), 1800); return () => clearTimeout(t) }, [])
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
+    <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)', letterSpacing: '-0.02em' }}>
+      <AmbientBg />
+
       <AnimatePresence>
         {!splashDone && (
-          <motion.div
-            className="fixed inset-0 z-[200] bg-white flex items-center justify-center"
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <motion.div className="flex flex-col items-center gap-4">
-              <motion.div
-                className="w-20 h-20 rounded-[18px] bg-gradient-to-br from-[#1677FF] to-[#69B1FF] flex items-center justify-center shadow-lg shadow-blue-500/20"
-                initial={{ scale: 0.6, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <Cloud className="w-10 h-10 text-white" strokeWidth={1.8} />
+          <motion.div className="fixed inset-0 z-[200] flex items-center justify-center"
+            style={{ background: 'var(--bg)' }}
+            exit={{ opacity: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
+            <motion.div className="flex flex-col items-center gap-6"
+              initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}>
+              <motion.div className="relative w-[88px] h-[88px] rounded-[22px] flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, var(--accent), #5AC8FA)', boxShadow: 'var(--shadow-lg)' }}
+                animate={{ scale: [1, 1.02, 1] }} transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}>
+                <Cloud className="w-10 h-10 text-white" strokeWidth={1.4} />
+                <motion.div className="absolute -inset-2 rounded-[28px] border" style={{ borderColor: 'var(--border-strong)' }}
+                  animate={{ scale: [1, 1.08, 1], opacity: [0.8, 0, 0.8] }}
+                  transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }} />
               </motion.div>
-
-              <motion.span
-                className="text-[22px] font-semibold text-[#1F2329] tracking-tight"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5, duration: 0.6 }}
-              >
-                Cloud Nine
-              </motion.span>
-
-              <motion.div
-                className="w-12 h-[2px] bg-gray-100 rounded-full overflow-hidden mt-4"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
-              >
-                <motion.div
-                  className="h-full bg-[#1677FF] rounded-full"
-                  initial={{ width: '0%' }}
-                  animate={{ width: '100%' }}
-                  transition={{ delay: 0.9, duration: 1.2, ease: 'easeInOut' }}
-                />
-              </motion.div>
+              <motion.span className="text-[26px] font-semibold tracking-tight"
+                style={{ color: 'var(--text)' }}
+                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.6 }}>Cloud Nine</motion.span>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <motion.nav
-        className="fixed top-0 left-0 right-0 z-50 h-12 flex items-center justify-between px-6 bg-white/80 backdrop-blur-xl"
-        style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}
-        initial={{ y: -48, opacity: 0 }}
-        animate={splashDone ? { y: 0, opacity: 1 } : {}}
-        transition={{ duration: 0.5 }}
-      >
+      {/* Nav */}
+      <motion.nav className="fixed top-0 inset-x-0 z-50 h-14 flex items-center justify-between px-6"
+        style={{ background: 'var(--bg-glass)', backdropFilter: 'blur(24px) saturate(180%)', borderBottom: '0.5px solid var(--border)' }}
+        initial={{ y: -56, opacity: 0 }} animate={splashDone ? { y: 0, opacity: 1 } : {}}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-[#1677FF] to-[#69B1FF] flex items-center justify-center shadow-sm">
-            <Cloud className="w-3.5 h-3.5 text-white" strokeWidth={2.2} />
+          <div className="w-7 h-7 rounded-[8px] flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, var(--accent), #5AC8FA)', boxShadow: 'var(--shadow-sm)' }}>
+            <Cloud className="w-4 h-4 text-white" strokeWidth={2} />
           </div>
-          <span className="text-[14px] font-semibold text-[#1F2329]">Cloud Nine</span>
+          <span className="text-[15px] font-semibold" style={{ color: 'var(--text)' }}>Cloud Nine</span>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/login')}
-            className="text-[12px] text-[#646A73] hover:text-[#1F2329] transition-colors"
-          >
+          <ThemeToggle />
+          <button onClick={() => navigate('/login')} className="text-[14px] transition-colors" style={{ color: 'var(--text-secondary)' }}>
             登录
           </button>
-          <button
-            onClick={() => navigate('/login')}
-            className="text-[12px] font-medium text-white bg-[#1677FF] hover:bg-[#4096FF] px-4 py-1.5 rounded-md transition-colors"
-          >
+          <button onClick={() => navigate('/login')}
+            className="text-[14px] font-medium text-white px-5 py-[7px] rounded-full transition-all duration-200 active:scale-[0.98]"
+            style={{ background: 'var(--accent)', boxShadow: 'var(--shadow-sm)' }}>
             免费开始
           </button>
         </div>
       </motion.nav>
 
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center bg-[#F5F6F7]">
-        <motion.div style={{ opacity: heroOpacity, y: heroY }} className="text-center px-6 max-w-3xl mx-auto">
-          <motion.h1
-            className="text-5xl sm:text-7xl font-bold text-[#1F2329] tracking-tight leading-[1.08]"
-            initial={{ opacity: 0, y: 30 }}
-            animate={splashDone ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          >
-            你的云端
-            <br />
-            <span className="bg-gradient-to-r from-[#1677FF] via-[#4096FF] to-[#7C5CFC] bg-clip-text text-transparent">
-              无限可能
+      {/* Hero */}
+      <section ref={heroRef} className="relative min-h-[100vh] flex flex-col items-center justify-center px-6 pt-24 pb-16">
+        <motion.div style={{ opacity: heroOpacity, y: heroY }} className="text-center max-w-4xl">
+          <motion.p className="text-[14px] font-medium mb-5 tracking-wide" style={{ color: 'var(--accent-text)' }}
+            initial={{ opacity: 0, y: 12 }} animate={splashDone ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.2 }}>Cloud Nine</motion.p>
+          <motion.h1 className="text-[52px] sm:text-[80px] font-semibold tracking-[-0.03em] leading-[1.04]" style={{ color: 'var(--text)' }}
+            initial={{ opacity: 0, y: 40 }} animate={splashDone ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}>
+            你的文件，<br />
+            <span className="bg-clip-text text-transparent"
+              style={{ backgroundImage: 'linear-gradient(90deg, var(--accent), #5AC8FA, var(--accent))', backgroundSize: '200% auto', animation: 'gradientShift 4s linear infinite' }}>
+              随时随地在身边。
             </span>
           </motion.h1>
-
-          <motion.p
-            className="mt-5 text-lg sm:text-xl text-[#646A73] font-light max-w-xl mx-auto leading-relaxed"
-            initial={{ opacity: 0, y: 20 }}
-            animate={splashDone ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.15 }}
-          >
-            免费、安全、无容量限制的云存储。
-            <br className="hidden sm:block" />
-            上传你的文件，随时随地访问。
+          <motion.p className="mt-7 text-[19px] sm:text-[22px] font-normal max-w-xl mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}
+            initial={{ opacity: 0, y: 24 }} animate={splashDone ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.8, delay: 0.35 }}>
+            无限容量 · 零成本 · 极速体验
           </motion.p>
-
-          <motion.div
-            className="mt-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={splashDone ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.3 }}
-          >
-            <button
-              onClick={() => navigate('/login')}
-              className="inline-flex items-center gap-2 text-[15px] font-medium text-white bg-[#1677FF] hover:bg-[#4096FF] px-7 py-2.5 rounded-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-sm"
-            >
-              立即使用
-              <ArrowRight className="w-4 h-4" />
+          <motion.div className="mt-10"
+            initial={{ opacity: 0, y: 16 }} animate={splashDone ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.7, delay: 0.5 }}>
+            <button onClick={() => navigate('/login')}
+              className="group inline-flex items-center gap-2 text-[16px] font-medium text-white px-8 py-3.5 rounded-full transition-all duration-200 active:scale-[0.97]"
+              style={{ background: 'var(--accent)', boxShadow: 'var(--shadow)' }}>
+              立即体验 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </button>
           </motion.div>
         </motion.div>
 
-        <motion.div
-          className="absolute bottom-10 left-1/2 -translate-x-1/2"
-          animate={splashDone ? { y: [0, 6, 0] } : {}}
-          transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-        >
-          <ChevronDown className="w-5 h-5 text-[#DCDEE0]" />
+        <motion.div className="absolute bottom-8 flex flex-col items-center gap-1"
+          animate={splashDone ? { opacity: [0.4, 1, 0.4] } : { opacity: 0 }}
+          transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}>
+          <span className="text-[11px] tracking-widest uppercase" style={{ color: 'var(--text-tertiary)' }}>Scroll</span>
+          <motion.div className="w-[1px] h-8 bg-gradient-to-b from-[var(--text-tertiary)] to-transparent" />
         </motion.div>
       </section>
 
-      <section className="py-24 px-6 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <FadeInSection>
-            <div className="text-center mb-16">
-              <h2 className="text-4xl sm:text-5xl font-bold text-[#1F2329] tracking-tight">
-                为什么选择 Cloud Nine
-              </h2>
-              <p className="mt-3 text-base text-[#646A73] font-light">
-                简单、快速、安全。云存储本该如此。
-              </p>
-            </div>
-          </FadeInSection>
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            {features.map((feat, i) => (
-              <FadeInSection key={feat.title} delay={i * 0.08}>
-                <div className="group p-8 rounded-lg bg-[#FAFBFC] border border-[#E5E6EB] hover:border-[#1677FF]/30 hover:shadow-[0_4px_16px_rgba(0,0,0,0.04)] transition-all duration-300">
-                  <div
-                    className="w-11 h-11 rounded-lg flex items-center justify-center mb-4"
-                    style={{ background: `${feat.accent}15` }}
-                  >
-                    <feat.icon className="w-5 h-5" style={{ color: feat.accent }} strokeWidth={1.8} />
-                  </div>
-                  <h3 className="text-lg font-semibold text-[#1F2329] mb-1.5">{feat.title}</h3>
-                  <p className="text-[14px] text-[#646A73] leading-relaxed">{feat.desc}</p>
-                </div>
-              </FadeInSection>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-24 px-6 bg-[#1F2329]">
-        <div className="max-w-4xl mx-auto text-center">
-          <FadeInSection>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
-              完全免费，没有套路
+      {/* Features */}
+      <section className="py-28 px-6">
+        <div className="max-w-6xl mx-auto">
+          <Reveal>
+            <p className="text-[13px] font-medium tracking-widest uppercase mb-3" style={{ color: 'var(--accent-text)' }}>为什么选择 Cloud Nine</p>
+            <h2 className="text-[40px] sm:text-[52px] font-semibold tracking-[-0.03em] leading-tight mb-4" style={{ color: 'var(--text)' }}>
+              一切，只为简单。
             </h2>
-            <p className="mt-3 text-base text-[#8F959E] font-light">
-              没有容量限制，没有速度限制，没有隐藏收费。
-            </p>
-          </FadeInSection>
-
-          <div className="grid grid-cols-3 gap-4 sm:gap-8 mt-12 sm:mt-16">
-            {[
-              { value: '∞', label: '存储空间' },
-              { value: '¥0', label: '使用费用' },
-              { value: '256-bit', label: '加密传输' },
-            ].map((stat, i) => (
-              <FadeInSection key={stat.label} delay={i * 0.1}>
-                <div>
-                  <p className="text-3xl sm:text-5xl font-bold bg-gradient-to-r from-[#1677FF] via-[#4096FF] to-[#7C5CFC] bg-clip-text text-transparent">
-                    {stat.value}
-                  </p>
-                  <p className="mt-2 text-[11px] sm:text-[12px] text-[#8F959E]">{stat.label}</p>
-                </div>
-              </FadeInSection>
+            <p className="text-[18px] max-w-lg leading-relaxed mb-16" style={{ color: 'var(--text-secondary)' }}>从上传到分享，没有多余的一步。云存储本该如此。</p>
+          </Reveal>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {features.map((f, i) => (
+              <Reveal key={f.title} delay={i * 0.07}>
+                <TiltCard>
+                  <div className="p-8 rounded-[20px] transition-all duration-300"
+                    style={{ background: 'var(--bg-elev)', boxShadow: 'var(--shadow-sm)', border: '0.5px solid var(--border)' }}>
+                    <div className="w-12 h-12 rounded-[14px] flex items-center justify-center mb-5"
+                      style={{ background: 'var(--accent-light)' }}>
+                      <f.icon className="w-[22px] h-[22px]" style={{ color: f.color }} strokeWidth={1.5} />
+                    </div>
+                    <h3 className="text-[18px] font-semibold mb-2" style={{ color: 'var(--text)' }}>{f.title}</h3>
+                    <p className="text-[15px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{f.desc}</p>
+                  </div>
+                </TiltCard>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="py-32 px-6 text-center bg-white">
-        <FadeInSection>
-          <h2 className="text-4xl sm:text-5xl font-bold text-[#1F2329] tracking-tight">
-            准备好了吗？
-          </h2>
-          <p className="mt-3 text-base text-[#646A73] font-light">
-            30 秒注册，立即开始使用。
-          </p>
-          <button
-            onClick={() => navigate('/login')}
-            className="inline-flex items-center gap-2 text-[15px] font-medium text-white bg-[#1677FF] hover:bg-[#4096FF] px-8 py-3 rounded-md transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-sm mt-8"
-          >
-            免费开始使用
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </FadeInSection>
+      {/* Team */}
+      <section className="py-28 px-6" style={{ background: 'var(--bg-elev)' }}>
+        <div className="max-w-3xl mx-auto text-center">
+          <Reveal>
+            <p className="text-[13px] font-medium tracking-widest uppercase mb-4" style={{ color: 'var(--accent-text)' }}>LT 团队</p>
+            <h2 className="text-[36px] sm:text-[44px] font-semibold tracking-[-0.02em] leading-tight mb-6" style={{ color: 'var(--text)' }}>
+              一群热爱技术的人
+            </h2>
+            <p className="text-[18px] max-w-md mx-auto leading-relaxed mb-12" style={{ color: 'var(--text-secondary)' }}>
+              致力于打造最纯粹的云存储体验。不做广告、不做追踪、不做恶心用户的事。
+            </p>
+            <div className="grid grid-cols-3 gap-6">
+              {[
+                { v: '∞', l: '存储空间' },
+                { v: '¥0', l: '使用费用' },
+                { v: '24/7', l: '持续在线' },
+              ].map((s, i) => (
+                <div key={i}>
+                  <p className="text-[48px] sm:text-[56px] font-semibold tracking-[-0.02em] leading-none" style={{ color: 'var(--text)' }}>{s.v}</p>
+                  <p className="mt-3 text-[14px]" style={{ color: 'var(--text-secondary)' }}>{s.l}</p>
+                </div>
+              ))}
+            </div>
+          </Reveal>
+        </div>
       </section>
 
-      <footer className="py-5 px-4 sm:px-6" style={{ borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Cloud className="w-3.5 h-3.5 text-[#BCC0C6]" />
-            <span className="text-[11px] text-[#BCC0C6]">Cloud Nine</span>
-          </div>
-          <p className="text-[11px] text-[#DCDEE0]">基于 Telegram 的无限云存储</p>
-        </div>
+      {/* CTA */}
+      <section className="py-32 px-6 text-center">
+        <Reveal>
+          <h2 className="text-[36px] sm:text-[48px] font-semibold tracking-[-0.03em] mb-4" style={{ color: 'var(--text)' }}>
+            准备好开始了吗？
+          </h2>
+          <p className="text-[18px] mb-10" style={{ color: 'var(--text-secondary)' }}>无需注册费用，30 秒即可开始。</p>
+          <button onClick={() => navigate('/login')}
+            className="group inline-flex items-center gap-2 text-[16px] font-medium text-white px-9 py-3.5 rounded-full transition-all duration-200 active:scale-[0.97]"
+            style={{ background: 'var(--accent)', boxShadow: 'var(--shadow)' }}>
+            立即开始 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        </Reveal>
+      </section>
+
+      <footer className="py-6 px-6 text-center" style={{ borderTop: '0.5px solid var(--border)' }}>
+        <p className="text-[13px]" style={{ color: 'var(--text-tertiary)' }}>Cloud Nine · 由 LT 团队开发维护</p>
       </footer>
+
+      <style>{`
+        @keyframes gradientShift {
+          0%, 100% { background-position: 0% center; }
+          50% { background-position: 200% center; }
+        }
+      `}</style>
     </div>
   )
 }
