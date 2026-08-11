@@ -65,16 +65,101 @@
 
 ## 🚀 部署
 
+### 前置准备
+
+1. **Telegram Bot** — 在 [@BotFather](https://t.me/BotFather) 创建 Bot，获取 `TELEGRAM_BOT_TOKEN`
+2. **Telegram 超级群组** — 创建一个 Supergroup，将 Bot 拉入并设为管理员，获取 Chat ID（格式 `-100xxxxxxxxxx`）。Chat ID 可在 Web 版 TG 的 URL 中看到，或通过 `https://api.telegram.org/bot<TOKEN>/getUpdates` 查看
+3. **Cloudflare 账号** — 开通 Workers 和 Pages（免费额度足够日常使用）
+4. **域名**（可选） — 绑定自定义域名到 Pages + Workers，实现同域部署
+
+### 1. 创建 Cloudflare 资源
+
+在 [Cloudflare Dashboard](https://dash.cloudflare.com) 依次创建：
+
+**KV 命名空间：**
+- 进入 **Workers & Pages → KV**，点击 **Create namespace**
+- 名称随意（如 `tgdrive-kv`），记录生成的 `namespace_id`
+
+**D1 数据库：**
+- 进入 **Workers & Pages → D1**，点击 **Create database**
+- 名称填 `tgdrive-db`，记录生成的 `database_id`
+- 创建后进入数据库 → **Console**，依次执行以下 SQL：
+  ```sql
+  -- 粘贴 worker/migrations/0001_init.sql 的全部内容
+  ```
+  ```sql
+  -- 粘贴 worker/migrations/0002_admin_index.sql 的全部内容
+  ```
+
+### 2. 部署 Worker（后端）
+
 ```bash
-# Worker
-cd worker && npm install
+cd worker
+npm install
+
+# 构建
 npx esbuild src/index.ts --bundle --format=esm --target=es2022 \
   --outfile=dist/worker.js --platform=browser --external:cloudflare:workers
-
-# 前端
-cd frontend && npm install
-npm run build   # tsc --noEmit && vite build → dist/
 ```
+
+然后在 Cloudflare Dashboard：
+- **Workers & Pages → Create → Create Worker**，名称随意（如 `tgdrive-api`）
+- 上传 `dist/worker.js`（或通过 CLI `npx wrangler deploy`）
+- 进入 Worker → **Settings → Variables**，添加以下内容：
+
+**普通变量（Variables）：**
+
+| 变量名 | 值 |
+|--------|-----|
+| `TELEGRAM_CHANNEL_ID` | 超级群组 Chat ID（如 `-100xxxxxxxxxx`） |
+| `ENVIRONMENT` | `production` |
+
+**密钥（Secrets）：**
+
+| 变量名 | 说明 |
+|--------|------|
+| `TELEGRAM_BOT_TOKEN` | Bot Token（BotFather 获取） |
+| `JWT_SECRET` | access_token 签名密钥（随机字符串，如 `openssl rand -hex 32`） |
+| `JWT_REFRESH_SECRET` | refresh_token 签名密钥（同上，另一个随机串） |
+| `ADMIN_PASSWORD` | 管理后台登录密码 |
+| `WEBHOOK_SECRET` | Webhook 验证密钥（随机字符串） |
+
+**绑定（Bindings）：**
+- 添加 **KV Namespace** → 变量名 `METADATA_KV` → 选择前面创建的 KV
+- 添加 **D1 Database** → 变量名 `DB` → 选择 `tgdrive-db`
+
+> 也可以用 `wrangler.jsonc` + `npx wrangler deploy` 一键部署，参考 `worker/wrangler.jsonc`（记得替换 KV/D1 的 ID）。
+
+### 3. 部署 Pages（前端）
+
+```bash
+cd frontend
+npm install
+npm run build   # 产物在 dist/ 目录
+```
+
+在 Cloudflare Dashboard：
+- **Workers & Pages → Create → Pages → Upload assets**
+- 上传 `frontend/dist/` 目录
+- 项目名称随意（如 `tgdrive`）
+- 部署完成后 → **Settings → Environment variables**，添加：
+
+| 变量名 | 值 |
+|--------|-----|
+| `VITE_API_BASE` | `https://<your-domain.com>/api`（或 Worker 默认域名 `/api`） |
+
+### 4. 同域配置（可选）
+
+让前端和 API 共享同一域名，避免跨域问题：
+- 在 Pages 的 **Custom domains** 中添加你的域名（如 `drive.example.com`）
+- 在 Worker 的 **Triggers → Routes** 中添加路由：`drive.example.com/api/*`
+- 前端会自动通过相对路径 `/api/*` 访问 Worker
+
+### 5. 验证
+
+1. 浏览器打开 Pages 域名 → 注册账号 → 登录
+2. 上传一个文件 → 确认能在 Telegram 群组中看到对应消息
+3. 访问 `GET /api/admin/migrate`（需 Admin 认证）回填 KV 数据到 D1（仅首次）
 
 ## 📖 开发文档
 
