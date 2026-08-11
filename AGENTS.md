@@ -61,3 +61,4 @@ cd frontend && npm run build   # tsc --noEmit && vite build
 5. 构建验证（worker + frontend 都通过）
 6. 更新 `DEVDOC.md`（API 路由表、架构说明）
 7. 更新 `README.md`（如果是用户可见功能）
+8. **询问用户是否推送到 GitHub**（不要擅自推送）
