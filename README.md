@@ -36,7 +36,7 @@
 | 后端 | Hono (CF Workers) + TypeScript + WebSocket |
 | 存储 | Telegram Supergroup + Cloudflare KV + D1 |
 | 认证 | JWT (HS256) + PBKDF2 密码哈希 + 自动 Token 刷新 |
-| 部署 | Cloudflare Pages + Workers（同域 `pan.muleng.dpdns.org`） |
+| 部署 | Cloudflare Pages + Workers（同域 `<your-domain.com>`） |
 
 ## 📦 大文件上传架构
 

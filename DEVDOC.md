@@ -6,10 +6,10 @@
 
 ## 部署地址
 
-- **统一域名**: `pan.muleng.dpdns.org`（Pages + Worker 同域）
-- **Pages**: `pan.muleng.dpdns.org/`（前端 SPA）
-- **App 页面**: `pan.muleng.dpdns.org/app`（文件管理器）
-- **Worker 路由**: `pan.muleng.dpdns.org/api/*`（API + WebSocket）
+- **统一域名**: `<your-domain.com>`（Pages + Worker 同域）
+- **Pages**: `<your-domain.com>/`（前端 SPA）
+- **App 页面**: `<your-domain.com>/app`（文件管理器）
+- **Worker 路由**: `<your-domain.com>/api/*`（API + WebSocket）
 
 ## 项目结构
 
@@ -97,12 +97,12 @@ TG DRIVE/
 
 `frontend/src/lib/api.ts` 中 `API_BASE`：
 ```ts
-const API_BASE = import.meta.env.VITE_API_BASE || "https://pan.muleng.dpdns.org/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://<your-domain.com>/api";
 ```
 
 `frontend/.env` 可覆盖，Cloudflare Pages Dashboard 环境变量 `VITE_API_BASE` 也可覆盖。
 
-WebSocket URL 为 `wss://pan.muleng.dpdns.org/api/ws/upload`。
+WebSocket URL 为 `wss://<your-domain.com>/api/ws/upload`。
 
 ## 构建命令
 
@@ -548,8 +548,8 @@ async rawFetch(path: string, options?: {
 ## 域名架构
 
 ```
-pan.muleng.dpdns.org/          → Cloudflare Pages（前端 SPA）
-pan.muleng.dpdns.org/api/*     → Cloudflare Worker（API + WebSocket）
+<your-domain.com>/          → Cloudflare Pages（前端 SPA）
+<your-domain.com>/api/*     → Cloudflare Worker（API + WebSocket）
                               → Worker 收到完整 path（如 /api/auth/login）
                               → index.ts 自定义 handler 精确匹配 path
                               → WebSocket: /api/ws/upload, /api/ws/download
