@@ -9,6 +9,14 @@ export type TransferStatus =
   | "error"
   | "cancelled";
 
+/** Saved progress for upload resume within the same page session */
+export interface UploadResumeData {
+  completedIds: { index: number; file_id: string }[];
+  globalChunkIdx: number;
+  doneVols: number;
+  uploadedBytes: number;
+}
+
 export interface TransferItem {
   id: string;
   type: TransferType;
@@ -19,10 +27,14 @@ export interface TransferItem {
   speed: number;
   error?: string;
   uploadedBytes?: number;
-  downloadedBytes?: number; // 下载：已下载字节数（用于进度显示 "已下载 X / 总 Y"）
+  downloadedBytes?: number;
   chunksTotal?: number;
   chunksDone?: number;
   abortController?: AbortController;
+  /** Upload resume state — set on error so retry can skip completed work */
+  resumeData?: UploadResumeData;
+  /** Called when user clicks "retry" on a failed upload */
+  onRetry?: () => void;
 }
 
 interface TransferState {

@@ -61,13 +61,15 @@ export function UploadZone() {
       ws.onerror = () => { if (!closed) { closed = true; clearInterval(hb); reject(new Error("WS连接失败")); } };
     });
 
-  const uploadWs = async (file: File, tid: string, signal: AbortSignal) => {
+  const uploadWs = async (file: File, tid: string, signal: AbortSignal, resume?: { completedIds: { index: number; file_id: string }[]; globalChunkIdx: number; doneVols: number; uploadedBytes: number }) => {
     const vols = Math.ceil(file.size / VOLUME);
-    updateTransfer(tid, { status: "transferring", uploadedBytes: 0, chunksTotal: vols, chunksDone: 0 });
+    const all: { index: number; file_id: string; size?: number }[] = resume?.completedIds ? [...resume.completedIds] : [];
+    let doneVols = resume?.doneVols || 0, totalBytes = resume?.uploadedBytes || 0, maxReportedBytes = totalBytes;
+    let globalChunkIdx = resume?.globalChunkIdx || 0;
+    const startVol = resume?.doneVols || 0;
+
+    updateTransfer(tid, { status: "transferring", uploadedBytes: totalBytes, chunksTotal: vols, chunksDone: doneVols, progress: Math.round((totalBytes / file.size) * 100) });
     try {
-      const all: { index: number; file_id: string; size?: number }[] = [];
-      let doneVols = 0, totalBytes = 0, maxReportedBytes = 0;
-      let globalChunkIdx = 0; // global chunk index across all volumes (each volume resets to 0)
       const volWithRetry = async (i: number, vs: number, ve: number, maxRetry = 1): Promise<{ index: number; file_id: string; size?: number }[]> => {
         for (let attempt = 0; attempt <= maxRetry; attempt++) {
           try {
@@ -97,7 +99,7 @@ export function UploadZone() {
         }
         throw new Error("unreachable");
       };
-      for (let vi = 0; vi < vols; vi++) {
+      for (let vi = startVol; vi < vols; vi++) {
         if (signal.aborted) throw new Error("已取消");
         const vs = vi * VOLUME, ve = Math.min((vi + 1) * VOLUME, file.size);
         const r = await volWithRetry(vi, vs, ve);
@@ -114,7 +116,21 @@ export function UploadZone() {
       updateTransfer(tid, { status: "done", progress: 100 });
       // Brief delay to allow KV+D1 sync on server before fetching
       setTimeout(() => fetchFiles(), 800);
-    } catch (err) { if (!signal.aborted) updateTransfer(tid, { status: "error", error: err instanceof Error ? err.message : "上传失败" }); }
+    } catch (err) {
+      if (!signal.aborted) {
+        // Save resume state so the user can retry from where it left off
+        if (doneVols > 0 && all.length > 0) {
+          const resumeData = { completedIds: all, globalChunkIdx, doneVols, uploadedBytes: totalBytes };
+          const retryFn = () => {
+            updateTransfer(tid, { status: "pending", error: undefined, resumeData: undefined });
+            uploadWs(file, tid, new AbortController().signal, resumeData).then(() => fetchFiles());
+          };
+          updateTransfer(tid, { status: "error", error: err instanceof Error ? err.message : "上传失败", resumeData, onRetry: retryFn });
+        } else {
+          updateTransfer(tid, { status: "error", error: err instanceof Error ? err.message : "上传失败" });
+        }
+      }
+    }
   };
 
   const uploadHttp = async (file: File, tid: string, signal: AbortSignal) => {

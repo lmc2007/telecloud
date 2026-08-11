@@ -126,7 +126,12 @@ function TransferModal({ onClose }: { onClose: () => void }) {
                   </button>
                 )}
                 {(isDone || isErr) && (
-                  <button onClick={() => removeTransfer(t.id)} className="text-[var(--text-tertiary)] hover:text-[var(--text)] transition-colors text-[11px]">清除</button>
+                  <div className="flex items-center gap-1">
+                    {isErr && t.onRetry && (
+                      <button onClick={() => t.onRetry?.()} className="text-[11px] text-[var(--brand-blue)] hover:underline">重试</button>
+                    )}
+                    <button onClick={() => removeTransfer(t.id)} className="text-[var(--text-tertiary)] hover:text-[var(--text)] transition-colors text-[11px]">清除</button>
+                  </div>
                 )}
               </div>
             );
