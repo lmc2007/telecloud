@@ -381,12 +381,32 @@ adminRouter.get("/shares", async (c) => {
   ).all();
 
   // Resolve file names from KV (shares.file_id is KV UUID, not D1 INTEGER id)
-  const { getFileMeta } = await import("../storage/kv");
+  // For folder shares, file_id is a JSON array — use KV share info to detect type.
+  const { getFileMeta, getFolderMeta } = await import("../storage/kv");
   const results = await Promise.all(
     shares.results.map(async (s: any) => {
       try {
-        const meta = await getFileMeta(c.env, s.file_id);
-        return { ...s, file_name: meta?.name || "(已删除)" };
+        // Parse file_id — may be a single UUID or a JSON array
+        let ids: string[];
+        try {
+          const parsed = JSON.parse(s.file_id);
+          ids = Array.isArray(parsed) ? parsed : [s.file_id];
+        } catch { ids = [s.file_id]; }
+
+        // Check KV share info for folder shares
+        const kvShare = await c.env.METADATA_KV.get(`share:${s.token}`, "json") as any;
+        if (kvShare?.target_type === "folder") {
+          const folder = ids[0] ? await getFolderMeta(c.env, ids[0]).catch(() => null) : null;
+          return { ...s, file_name: folder ? `文件夹: ${folder.name}` : "(已删除)" };
+        }
+
+        // File share — look up each file in KV
+        const metas = await Promise.all(ids.map(id => getFileMeta(c.env, id).catch(() => null)));
+        const validMetas = metas.filter(Boolean);
+        const displayName = ids.length === 1
+          ? (validMetas[0]?.name || "(已删除)")
+          : `${ids.length} 个文件`;
+        return { ...s, file_name: displayName };
       } catch {
         return { ...s, file_name: "(已删除)" };
       }

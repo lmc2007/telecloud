@@ -329,7 +329,7 @@ export function AdminPanel() {
                 <tbody>
                   {shares.map((s: ShareRow) => (
                     <tr key={s.id} className="hover:bg-[rgba(22,119,255,0.03)] border-b border-[rgba(0,0,0,0.08)]">
-                      <td className="px-4 py-2.5"><code className="text-[11px] bg-[rgba(0,0,0,0.02)] px-1.5 py-0.5 rounded text-[#1677FF]">{s.token}</code></td>
+                      <td className="px-4 py-2.5"><a href={`/s/${s.token}`} target="_blank" rel="noopener" className="text-[11px] text-[#1677FF] hover:underline font-mono">{s.token}</a></td>
                       <td className="px-4 py-2.5 font-medium text-[#1D1D1F] truncate max-w-[200px]">{s.file_name}</td>
                       <td className="px-4 py-2.5 text-[#86868B]">{s.username}</td>
                       <td className="px-4 py-2.5 text-[#86868B]">{s.download_count}{s.max_downloads ? `/${s.max_downloads}` : ""}</td>
