@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+*.zip
+*.py
+.reasonix/
+reasonix.toml
+.reasonix
+AGENTS.md
+wrangler.jsonc

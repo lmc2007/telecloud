@@ -1,0 +1,11 @@
+{
+  "name": "tgdrive",
+  "main": "dist/worker.js",
+  "compatibility_date": "2025-07-01",
+  "kv_namespaces": [
+    { "binding": "METADATA_KV", "id": "<your-kv-namespace-id>" }
+  ],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "tgdrive-db", "database_id": "<your-d1-database-id>" }
+  ]
+}
