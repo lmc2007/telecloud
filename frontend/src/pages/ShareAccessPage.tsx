@@ -126,6 +126,7 @@ export function ShareAccessPage() {
   const handlePassword = () => { setPwError(""); load(true); };
   const handleNavigateFolder = (folderId: string) => { setCurrentFolderId(folderId); load(false, folderId); };
   const handleBreadcrumbClick = (folderId: string) => { setCurrentFolderId(folderId); load(false, folderId); };
+  const handleBackToFolderList = () => { setCurrentFolderId(null); setBreadcrumbs([]); load(false); };
 
   const files: ShareFile[] = data?.files || [];
   const fileItems: FileItem[] = useMemo(() => files.map(toFileItem), [files]);
@@ -302,6 +303,13 @@ export function ShareAccessPage() {
               <div className="h-10 flex items-center px-4 overflow-x-auto flex-shrink-0"
                 style={{ background: 'rgba(245,245,247,0.7)', backdropFilter: 'blur(12px)', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
                 <div className="flex items-center gap-1 text-[12px] whitespace-nowrap">
+                  {data?.is_folders && (
+                    <>
+                      <button onClick={handleBackToFolderList}
+                        className="text-[var(--brand-blue)] hover:underline px-1 flex-shrink-0">← 返回</button>
+                      <ChevronRight className="w-3 h-3 text-[var(--text-disabled)] flex-shrink-0" />
+                    </>
+                  )}
                   {breadcrumbs.map((b, i) => (
                     <span key={b.id} className="flex items-center gap-1">
                       {i > 0 && <ChevronRight className="w-3 h-3 text-[var(--text-disabled)]" />}
@@ -465,6 +473,16 @@ export function ShareAccessPage() {
               {/* Breadcrumbs or title */}
               {isFolderShare && breadcrumbs.length > 0 ? (
                 <div className="flex items-baseline gap-1.5 min-w-0">
+                  {data?.is_folders && (
+                    <>
+                      <button onClick={handleBackToFolderList}
+                        className="text-[22px] font-medium hover:text-[var(--text)] truncate max-w-[220px] transition-colors rounded flex-shrink-0"
+                        style={{ color: 'var(--text-tertiary)' }}>
+                        ← 返回
+                      </button>
+                      <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-disabled)' }} />
+                    </>
+                  )}
                   {breadcrumbs.map((b, i) => (
                     <span key={b.id} className="flex items-center gap-1.5 flex-shrink-0">
                       {i > 0 && <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--text-disabled)' }} />}
