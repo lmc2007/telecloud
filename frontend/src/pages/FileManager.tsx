@@ -286,18 +286,23 @@ export function FileManager() {
   };
 
   const handleShareSelected = () => {
+    console.debug("[share] handleShareSelected called, selected.size:", selected.size);
     if (selected.size === 0) return;
     // Use raw files from store (not filteredFiles) to ensure all selected items
     // are found regardless of current page filter or search state.
     const items = files.filter(f => selected.has(f.id));
+    console.debug("[share] items found in files:", items.length, "items:", items.map(i => `${i.name}(${i.type})`));
     if (items.length === 0) return;
     // Allow multi-folder selection, but don't mix files and folders
     const folders = items.filter(f => f.type === "folder");
     const pureFiles = items.filter(f => f.type === "file");
+    console.debug("[share] folders:", folders.length, "files:", pureFiles.length);
     if (folders.length > 0 && pureFiles.length > 0) {
       // Mixed selection: only share files (existing behavior)
+      console.debug("[share] mixed selection → sharing files only");
       setShareFiles(pureFiles);
     } else {
+      console.debug("[share] pure selection → sharing all items:", items.length);
       setShareFiles(items);
     }
     setCtx(null);

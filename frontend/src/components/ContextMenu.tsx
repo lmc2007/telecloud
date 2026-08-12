@@ -20,10 +20,11 @@ export function ContextMenu({ item, selected, selectedCount, onClose, onShare, o
   }, [onClose]);
 
   const multi = (selectedCount ?? 0) > 1 && selected?.has(item.id);
+  console.debug("[ctx] multi:", multi, "selectedCount:", selectedCount, "selected.has(item.id):", selected?.has(item.id), "item:", item.name, "item.type:", item.type);
   const items = multi
     ? [
-        ...(onDownloadSelected ? [{ icon: Download, label: `下载 ${selectedCount} 项`, action: onDownloadSelected }] : []),
-        ...(onShareSelected ? [{ icon: Share2, label: `分享 ${selectedCount} 项`, action: onShareSelected }] : []),
+        ...(onDownloadSelected ? [{ icon: Download, label: `下载 ${selectedCount} 项`, action: () => { console.debug("[ctx] action: downloadSelected"); onDownloadSelected(); } }] : []),
+        ...(onShareSelected ? [{ icon: Share2, label: `分享 ${selectedCount} 项`, action: () => { console.debug("[ctx] action: shareSelected (multi)"); onShareSelected(); } }] : []),
         ...(onMoveSelected ? [{ icon: FolderInput, label: `移动到 ${selectedCount} 项`, action: onMoveSelected }] : []),
         null as any,
         ...(onDeleteSelected ? [{ icon: Trash2, label: `删除 ${selectedCount} 项`, action: onDeleteSelected, danger: true }] : []),
@@ -34,7 +35,7 @@ export function ContextMenu({ item, selected, selectedCount, onClose, onShare, o
           ...(isPreviewable(item) && onPreview ? [{ icon: Eye, label: "预览", action: onPreview }] : []),
           { icon: Download, label: "下载", action: onDownload },
         ] : []),
-        { icon: Share2, label: "分享", action: onShare },
+        { icon: Share2, label: "分享", action: () => { console.debug("[ctx] action: share (single)"); onShare(); } },
         { icon: FolderInput, label: "移动到", action: onMove },
         null as any,
         { icon: Trash2, label: "删除", action: onDelete, danger: true },

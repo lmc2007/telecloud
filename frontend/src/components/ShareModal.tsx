@@ -15,6 +15,7 @@ export function ShareModal({ files, onClose }: { files: FileItem[]; onClose: () 
 
   const isFolder = files.length > 0 && files.every(f => f.type === "folder");
   const isMultiFolder = isFolder && files.length > 1;
+  console.debug("[share-modal] render, files.length:", files.length, "isFolder:", isFolder, "isMultiFolder:", isMultiFolder, "names:", files.map(f => f.name));
 
   const handleCreate = async () => {
     if (files.length === 0) return;
