@@ -360,7 +360,7 @@ npm run build   # 生成 dist/ 目录
 
 > Worker 域名在 Worker 详情页顶部，格式为 `tgdrive-api.你的用户名.workers.dev`。如果后面配置了自定义域名，这里填自定义域名。
 
-点击 **Save** → 回到 **Deployments** 标签 → 点击最新的部署右侧的 **...** → **Retry deployment**（让新环境变量生效）。
+点击 **Save** → 回到 **Deployments** 标签 → 点击 **Upload assets** 重新上传 `dist/` 目录，使新环境变量生效。
 
 ---
 
@@ -375,7 +375,7 @@ npm run build   # 生成 dist/ 目录
 3. 进入 Worker → **Settings** → **Domains & Routes** → **Add route**
 4. Route 填 `drive.你的域名.com/api/*`，Zone 选你的域名，点击 **Add route**
 5. 回到 Pages → **Settings** → **Variables and Secrets**，编辑 `VITE_API_BASE` 为 `https://drive.你的域名.com/api`
-6. 重新部署一次 Pages 使变量生效
+6. 回到 **Deployments** 标签 → **Upload assets** 重新上传 `dist/` 目录使变量生效
 
 ---
 
