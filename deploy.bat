@@ -33,7 +33,7 @@ echo [Config] Worker: %WORKER_NAME%  Pages: %PAGES_NAME%
 if not "%DOMAIN%"=="" echo [Config] Domain: %DOMAIN%
 echo.
 
-echo [1/4] Building Worker...
+echo [1/5] Building Worker...
 cd worker
 call npm run build
 if %ERRORLEVEL% neq 0 (
@@ -45,7 +45,7 @@ if %ERRORLEVEL% neq 0 (
 echo [OK] Worker build done
 
 echo.
-echo [2/4] Deploying Worker (%WORKER_NAME%)...
+echo [2/5] Deploying Worker (%WORKER_NAME%)...
 call npm run deploy
 if %ERRORLEVEL% neq 0 (
     echo [FAIL] Worker deploy failed!
@@ -57,7 +57,7 @@ echo [OK] Worker deployed
 cd ..
 
 echo.
-echo [3/4] Building Frontend...
+echo [3/5] Building Frontend...
 cd frontend
 call npm run build
 if %ERRORLEVEL% neq 0 (
@@ -69,7 +69,12 @@ if %ERRORLEVEL% neq 0 (
 echo [OK] Frontend build done
 
 echo.
-echo [4/4] Deploying Frontend (%PAGES_NAME%)...
+echo [4/5] Ensuring Pages project exists (%PAGES_NAME%)...
+call npx wrangler pages project create %PAGES_NAME% --production-branch=main 2>nul
+echo [OK] Pages project ready
+
+echo.
+echo [5/5] Deploying Frontend (%PAGES_NAME%)...
 call npx wrangler pages deploy dist --project-name=%PAGES_NAME%
 if %ERRORLEVEL% neq 0 (
     echo [FAIL] Frontend deploy failed!
