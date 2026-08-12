@@ -186,14 +186,14 @@ cp worker/wrangler.example.jsonc worker/wrangler.jsonc
 
 #### 2.1 创建 KV 命名空间
 
-1. Cloudflare Dashboard → 左侧菜单 **Workers & Pages** → 顶部标签 **KV**
+1. Cloudflare Dashboard → 左侧菜单 **Workers KV**
 2. 点击 **Create namespace**
 3. 名称填 `tgdrive-kv`（随意），点击 **Add**
 4. 创建后会看到 ID，如 `e93083a3832c412fab0ba9a371fb0aa5`，**记录下来**，等下要用
 
 #### 2.2 创建 D1 数据库
 
-1. Cloudflare Dashboard → 左侧 **Workers & Pages** → 顶部标签 **D1**
+1. Cloudflare Dashboard → 左侧菜单 **D1**
 2. 点击 **Create database**
 3. 名称填 `tgdrive-db`，点击 **Create**
 4. 创建后看到 ID，如 `50be523a-7cef-41fb-b30c-2f5758b5be39`，**记录下来**
@@ -217,13 +217,13 @@ npx esbuild src/index.ts --bundle --format=esm --target=es2022 \
 
 #### 3.2 创建 Worker
 
-1. Cloudflare Dashboard → 左侧 **Workers & Pages** → 点击 **Create** 按钮
-2. 选择 **Create Worker**
+1. Cloudflare Dashboard → 左侧 **Workers & Pages** → 点击 **Create application** 按钮
+2. 选择 **Start from scratch**（从头开始）→ 选择 **Hello World** Worker
 3. 名称填 `tgdrive-api`（随意），点击 **Deploy**（先不管代码，后面覆盖）
 
 #### 3.3 上传代码
 
-1. 进入刚创建的 Worker → 顶部标签 **Settings** → 右侧 **Edit Code**（或顶部 **Quick Edit**）
+1. 进入刚创建的 Worker 详情页 → 点击 **Edit code** 按钮（在页面右上角附近）
 2. 如果从 Release 下载：打开 `worker/worker.js`，复制全部代码，粘贴覆盖编辑器中的内容
 3. 如果从源码构建：复制 `worker/dist/worker.js` 的内容同上操作
 4. 点击右上角 **Save and Deploy**
@@ -283,7 +283,7 @@ npm run build   # 生成 dist/ 目录
 
 #### 4.2 创建 Pages 项目
 
-1. Cloudflare Dashboard → 左侧 **Workers & Pages** → 点击 **Create** → 选择 **Pages**
+1. Cloudflare Dashboard → 左侧 **Workers & Pages** → 点击 **Create application** → 选择 **Pages** 标签
 2. 选择 **Upload assets**（直接上传）
 3. 项目名称填 `tgdrive`（随意），点击 **Create project**
 
@@ -318,7 +318,7 @@ npm run build   # 生成 dist/ 目录
 
 1. 进入 Pages 项目 → **Custom domains** → **Set up a custom domain**
 2. 输入子域名如 `drive.你的域名.com`，点击 **Continue** → **Activate domain**
-3. 进入 Worker → **Settings** → **Triggers** → **Routes** → **Add route**
+3. 进入 Worker → **Settings** → **Domains & Routes** → **Add route**
 4. Route 填 `drive.你的域名.com/api/*`，Zone 选你的域名，点击 **Add route**
 5. 回到 Pages → **Settings** → **Environment variables**，把 `VITE_API_BASE` 改为 `https://drive.你的域名.com/api`
 6. 重新部署一次 Pages 使变量生效
