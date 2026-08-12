@@ -286,12 +286,10 @@ export function FileManager() {
   };
 
   const handleShareSelected = () => {
-    let items = filteredFiles.filter(f => selected.has(f.id));
-    // Fallback: on pages that filter out folders (docs/images/videos/audio),
-    // selected folder IDs may not be in filteredFiles. Try the raw files list.
-    if (items.length === 0 && selected.size > 0) {
-      items = files.filter(f => selected.has(f.id));
-    }
+    if (selected.size === 0) return;
+    // Use raw files from store (not filteredFiles) to ensure all selected items
+    // are found regardless of current page filter or search state.
+    const items = files.filter(f => selected.has(f.id));
     if (items.length === 0) return;
     // Allow multi-folder selection, but don't mix files and folders
     const folders = items.filter(f => f.type === "folder");
