@@ -68,6 +68,8 @@
 项目已配置 GitHub Actions，`git push main` 自动触发部署。
 
 > ⚠️ **首次部署需完成以下三步**，之后每次 `git push` 即可自动部署：
+> 
+> 💡 **首次部署建议先阅读下方的手把手部署教程**，了解 Telegram Bot 创建、超级群组配置等前置准备。
 
 ### 第一步：配置 Worker Secrets（仅首次，本地执行）
 
