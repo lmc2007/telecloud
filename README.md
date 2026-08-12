@@ -355,17 +355,31 @@ npm run build   # 生成 dist/ 目录
 
 #### 4.4 配置环境变量
 
-部署完成后 → 顶部标签 **Settings** → **Variables and Secrets** → 添加 **Plain text** 类型的环境变量
+> ⚠️ **重要**：`VITE_API_BASE` 是 Vite 构建时变量，只在 `npm run build` 时生效。如果你用的是"上传静态文件"方式（4.3），必须在构建前先配置好。
 
-点击 **Add** → 选择 **Plain text**：
+**方式 A：构建前配置（推荐，适用于上传静态文件）**
+
+在 `frontend/.env` 中设置（参考第一步源码配置文件说明），然后重新构建：
+
+```bash
+cd frontend
+# 编辑 .env，设置 VITE_API_BASE=https://你的Worker域名/api
+npm run build
+```
+
+然后回到 4.3 重新上传 `dist/` 目录部署。
+
+**方式 B：Pages Dashboard（仅对 CI/CD 自动构建生效）**
+
+如果你用 GitHub Actions 自动部署，在 Pages Dashboard 设置：
+
+部署完成后 → 顶部标签 **Settings** → **Variables and Secrets** → 添加 **Plain text** 类型：
 
 | 变量名 | 值 |
 |--------|-----|
-| `VITE_API_BASE` | `https://你的Worker域名/api`（⚠️ 必须替换为真实域名，不要保留 `<>`） |
+| `VITE_API_BASE` | `https://你的Worker域名/api` |
 
-> Worker 域名在 Worker 详情页顶部，格式为 `tgdrive-api.你的用户名.workers.dev`。如果后面配置了自定义域名，这里填自定义域名。
-
-点击 **Save** → 回到 **Deployments** 标签 → 点击 **Upload assets** 重新上传 `dist/` 目录，使新环境变量生效。
+> ⚠️ 此变量只在 Pages 自动构建（如 GitHub Actions）时生效。手动上传 `dist/` 不受此变量影响，必须用方式 A。
 
 ---
 
