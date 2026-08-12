@@ -18,6 +18,10 @@ cd frontend && npm run build   # tsc --noEmit && vite build
 
 两边都通过才算改完。
 
+## 修改后
+
+**修改代码后，必须在回复末尾询问用户是否推送到 GitHub，不得擅自推送。**
+
 ## 前端改动影响面
 
 | 改了 | 可能影响 |

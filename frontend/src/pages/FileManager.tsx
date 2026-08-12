@@ -443,6 +443,30 @@ export function FileManager() {
           </motion.div>
         )}</AnimatePresence>
 
+        {/* Delete confirm */}
+        <AnimatePresence>{confirmDelete && (
+          <motion.div className="modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="absolute inset-0" onClick={() => setConfirmDelete(null)} />
+            <motion.div className="modal-panel w-[320px] p-6 text-center" initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'var(--red)', boxShadow: 'var(--shadow)' }}>
+                <Trash2 className="w-5 h-5 text-white" strokeWidth={1.6} />
+              </div>
+              <h3 className="text-[16px] font-semibold text-[#1D1D1F] mb-2">删除文件</h3>
+              <p className="text-[13px] text-[#86868B] mb-1">
+                {confirmDelete.name ? `确定要删除「${confirmDelete.name}」吗？` : `确定要删除 ${confirmDelete.ids.length} 个项目吗？`}
+              </p>
+              <p className="text-[12px] text-[#AEAEB2] mb-5">删除后可在回收站中恢复</p>
+              <div className="flex justify-center gap-2">
+                <button onClick={() => setConfirmDelete(null)} className="btn-secondary py-2 px-5 text-[13px]">取消</button>
+                <button
+                  onClick={() => { doDelete(confirmDelete.ids); setConfirmDelete(null); }}
+                  className="btn-danger py-2 px-5 text-[13px]"
+                >删除</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}</AnimatePresence>
+
         <AnimatePresence>{ctx && (
           <div className="fixed inset-0 z-[99]" onClick={() => setCtx(null)}>
             <div style={{ position: "fixed", left: Math.min(ctx.x, window.innerWidth - 170), top: Math.min(ctx.y, window.innerHeight - 250) }}>
