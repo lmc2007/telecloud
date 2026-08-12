@@ -92,7 +92,8 @@ def run_live(cmd, cwd=None, env=None):
     if env:
         merged_env.update(env)
     proc = subprocess.Popen(cmd, shell=True, cwd=cwd, env=merged_env,
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            text=True, encoding="utf-8", errors="replace")
     out = []
     for line in proc.stdout:
         print(f"    {line.rstrip()}")
@@ -108,7 +109,8 @@ def run_silent(cmd, cwd=None, env=None, stdin=None):
     if env:
         merged_env.update(env)
     r = subprocess.run(cmd, shell=True, cwd=cwd, env=merged_env,
-                       capture_output=True, text=True, input=stdin)
+                       capture_output=True, text=True, input=stdin,
+                       encoding="utf-8", errors="replace")
     if r.returncode != 0:
         print(red(f"  ✗ {cmd}"))
         if r.stderr:
