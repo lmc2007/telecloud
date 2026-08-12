@@ -42,22 +42,30 @@
 
 项目已配置 GitHub Actions，`git push main` 自动触发部署。
 
-> ⚠️ **首次使用前必须配置 Cloudflare API Token**，否则 Workflow 会失败：
+> ⚠️ **首次部署需完成以下三步**，之后每次 `git push` 即可自动部署：
 
-### 第一步：创建 Cloudflare API Token
+### 第一步：配置 Worker Secrets（仅首次，本地执行）
 
-1. 打开 https://dash.cloudflare.com/profile/api-tokens
-2. 点击 **创建令牌** → 使用 "编辑 Cloudflare Workers" 模板
-3. 账户资源：选择你的账户，权限默认即可
-4. 创建后**立即复制 Token**（只显示一次）
+Worker 运行需要以下密钥，必须先上传到 Cloudflare：
 
-### 第二步：添加到 GitHub Secrets
+```bash
+cd worker
+npx wrangler secret put TELEGRAM_BOT_TOKEN
+npx wrangler secret put TELEGRAM_CHANNEL_ID
+npx wrangler secret put JWT_SECRET
+npx wrangler secret put JWT_REFRESH_SECRET
+npx wrangler secret put ADMIN_PASSWORD
+npx wrangler secret put WEBHOOK_SECRET
+```
 
-1. 打开你的 GitHub 仓库 → Settings → Secrets and variables → Actions
-2. 点击 **New repository secret**
-3. Name：`CLOUDFLARE_API_TOKEN`
-4. Secret：粘贴上一步复制的 Token
-5. 点击 **Add secret**
+> 提示：执行每条命令后会提示输入值。`TELEGRAM_BOT_TOKEN` 从 @BotFather 获取，`JWT_SECRET` 用 `openssl rand -hex 32` 生成。
+
+### 第二步：设置 GitHub Secret（仅首次）
+
+1. 打开 https://dash.cloudflare.com/profile/api-tokens → **创建令牌** → 使用 "编辑 Cloudflare Workers" 模板
+2. 创建后复制 Token
+3. 打开你的 GitHub 仓库 → Settings → Secrets and variables → Actions → **New repository secret**
+4. Name：`CLOUDFLARE_API_TOKEN`，值：粘贴 Token
 
 ### 第三步：推送即部署
 

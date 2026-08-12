@@ -123,12 +123,25 @@ npm run build   # tsc --noEmit && vite build → dist/
 
 ### 自动部署 (GitHub Actions)
 
-`git push` 到 `main` 分支自动触发，`.github/workflows/deploy.yml`：
+`git push` 到 `main` 分支自动触发，`.github/workflows/deploy.yml`。
 
+**首次部署前置步骤（仅一次）**：
+
+```bash
+cd worker
+npx wrangler secret put TELEGRAM_BOT_TOKEN
+npx wrangler secret put TELEGRAM_CHANNEL_ID
+npx wrangler secret put JWT_SECRET
+npx wrangler secret put JWT_REFRESH_SECRET
+npx wrangler secret put ADMIN_PASSWORD
+npx wrangler secret put WEBHOOK_SECRET
+```
+
+然后设置 GitHub Secret `CLOUDFLARE_API_TOKEN`（Cloudflare API Token → "编辑 Workers" 模板）。
+
+之后每次 `git push main` 自动执行：
 1. 构建并部署 Worker (`tgdrive`) → `wrangler deploy`
 2. 构建并部署前端 (`muleng-frontend`) → `wrangler pages deploy`
-
-需要 GitHub Secret：`CLOUDFLARE_API_TOKEN`
 
 ### 手动部署 (本地脚本)
 
