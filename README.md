@@ -131,7 +131,7 @@ Workflow 自动执行：
 1. 打开 [https://dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up) 注册账号
 2. 登录后进入 [Cloudflare Dashboard](https://dash.cloudflare.com)
 
-> Cloudflare Workers 免费版每天 10 万次请求，KV 每天 10 万次读写，D1 每天 500 万行查询——个人使用完全够用。
+> Cloudflare Workers 免费版每天 10 万次请求，KV 每天 10 万次读取（写入 1,000 次），D1 每天 500 万行读取（写入 10 万行）——个人使用完全够用。
 
 ---
 
