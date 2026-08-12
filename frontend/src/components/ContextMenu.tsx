@@ -48,7 +48,7 @@ export function ContextMenu({ item, selected, selectedCount, onClose, onShare, o
         const IconComp = e.icon as React.FC<{ className?: string; strokeWidth?: number }>;
         return (
           <button key={i} className={`context-menu-item ${e.danger ? "danger" : ""}`}
-            onClick={e.action}>{IconComp && <IconComp className="w-[18px] h-[18px]" strokeWidth={1.4} />}{e.label}</button>
+            onClick={(ev) => { ev.stopPropagation(); e.action(); }}>{IconComp && <IconComp className="w-[18px] h-[18px]" strokeWidth={1.4} />}{e.label}</button>
         );
       })}
     </motion.div>

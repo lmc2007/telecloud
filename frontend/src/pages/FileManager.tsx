@@ -489,7 +489,7 @@ export function FileManager() {
           </div>
         )}</AnimatePresence>
 
-        <ShareModal files={shareFiles} onClose={() => setShareFiles([])} />
+        <ShareModal key={shareFiles.map(f => f.id).join(",") || "empty"} files={shareFiles} onClose={() => setShareFiles([])} />
         <RenameModal file={renameFile} onClose={() => setRenameFile(null)} />
         <MoveModal files={moveFiles} onClose={() => setMoveFiles([])} />
         <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
@@ -721,7 +721,7 @@ export function FileManager() {
         </div>
       )}</AnimatePresence>
 
-      <ShareModal files={shareFiles} onClose={() => setShareFiles([])} />
+      <ShareModal key={shareFiles.map(f => f.id).join(",") || "empty"} files={shareFiles} onClose={() => setShareFiles([])} />
       <RenameModal file={renameFile} onClose={() => setRenameFile(null)} />
       <MoveModal files={moveFiles} onClose={() => setMoveFiles([])} />
       <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
