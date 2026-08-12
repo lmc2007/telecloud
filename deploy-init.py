@@ -222,29 +222,60 @@ def main():
 
     print(bold("── 第三步：创建 Cloudflare 资源 ──"))
 
-    print("  创建 KV 命名空间...")
-    kv = cf_req("POST", f"/accounts/{account_id}/storage/kv/namespaces",
-                {"title": f"{worker_name}-kv"})
-    kv_id = kv["id"]
-    print(green(f"  ✓ KV ID: {kv_id}"))
+    print("  检查/创建 KV 命名空间...")
+    kv_id = None
+    try:
+        kv = cf_req("POST", f"/accounts/{account_id}/storage/kv/namespaces",
+                    {"title": f"{worker_name}-kv"})
+        kv_id = kv["id"]
+        print(green(f"  ✓ KV 已创建: {kv_id}"))
+    except Exception as e:
+        if "already exists" in str(e) or "10014" in str(e):
+            print("  KV 命名空间已存在，查找中...")
+            existing = cf_req("GET", f"/accounts/{account_id}/storage/kv/namespaces?per_page=100")
+            for ns in (existing or []):
+                if ns.get("title") == f"{worker_name}-kv":
+                    kv_id = ns["id"]
+                    print(green(f"  ✓ KV 已存在: {kv_id}"))
+                    break
+        if not kv_id:
+            raise
 
-    print("  创建 D1 数据库...")
-    d1 = cf_req("POST", f"/accounts/{account_id}/d1/database",
-                {"name": f"{worker_name}-db"})
-    d1_id = d1["uuid"]
-    print(green(f"  ✓ D1 ID: {d1_id}"))
+    print("  检查/创建 D1 数据库...")
+    d1_id = None
+    try:
+        d1 = cf_req("POST", f"/accounts/{account_id}/d1/database",
+                    {"name": f"{worker_name}-db"})
+        d1_id = d1["uuid"]
+        print(green(f"  ✓ D1 已创建: {d1_id}"))
+    except Exception as e:
+        if "already exists" in str(e):
+            print("  D1 数据库已存在，查找中...")
+            existing = cf_req("GET", f"/accounts/{account_id}/d1/database?per_page=100")
+            for db in (existing or []):
+                if db.get("name") == f"{worker_name}-db":
+                    d1_id = db["uuid"]
+                    print(green(f"  ✓ D1 已存在: {d1_id}"))
+                    break
+        if not d1_id:
+            raise
 
-    print("  执行数据库迁移...")
+    print("  执行数据库迁移（跳过已存在的表）...")
     for migration in ["0001_init.sql", "0002_admin_index.sql"]:
         mpath = os.path.join(worker_dir, "migrations", migration)
         with open(mpath, "r", encoding="utf-8") as f:
             sql = f.read()
-        # 拆分为单条语句（跳过注释行）
         statements = [s.strip() for s in sql.split(";")
                       if s.strip() and not s.strip().startswith("--")]
         for stmt in statements:
-            cf_req("POST", f"/accounts/{account_id}/d1/database/{d1_id}/query",
-                   {"sql": stmt + ";"})
+            try:
+                cf_req("POST", f"/accounts/{account_id}/d1/database/{d1_id}/query",
+                       {"sql": stmt + ";"})
+            except Exception as e:
+                if "already exists" in str(e):
+                    pass  # 表/索引已存在，跳过
+                else:
+                    raise
     print(green("  ✓ 迁移完成"))
 
     # ─── Step 4: Worker ───
