@@ -5,7 +5,7 @@ Cloud Nine 一键部署脚本
 运行后即可直接使用。
 """
 
-import subprocess, sys, os, json, secrets, base64, string, time, urllib.request, urllib.error
+import subprocess, sys, os, json, re, secrets, base64, string, time, urllib.request, urllib.error
 
 # ── helpers ────────────────────────────────────────────
 
@@ -326,7 +326,6 @@ def main():
     print(green("  ✓ Worker 部署完成"))
 
     # 从 wrangler deploy 输出中提取 workers.dev URL（先剥离 ANSI 颜色码）
-    import re
     clean_out = re.sub(r'\x1b\[[0-9;]*m', '', deploy_out)
     worker_url = None
     for line in clean_out.split("\n"):
