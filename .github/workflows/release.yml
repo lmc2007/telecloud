@@ -1,13 +1,10 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Tag to release (e.g. v3.0)"
+      version:
+        description: "Version to release (e.g. v3.2.0)"
         required: true
 
 jobs:
@@ -16,22 +13,23 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Determine version
-        id: ver
-        run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=${{ inputs.tag }}" >> $GITHUB_OUTPUT
-          fi
-
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.ver.outputs.version }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      - name: Create and push tag
+        run: |
+          VERSION="${{ inputs.version }}"
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Tag $VERSION already exists, checking it out"
+            git checkout "$VERSION"
+          else
+            echo "Creating tag $VERSION on current HEAD"
+            git tag "$VERSION"
+            git push origin "$VERSION"
+          fi
 
       - name: Build Worker
         working-directory: worker
@@ -47,16 +45,17 @@ jobs:
 
       - name: Package Release
         run: |
+          VERSION="${{ inputs.version }}"
           mkdir -p release/worker release/frontend
           cp worker/dist/worker.js release/worker/worker.js
           cp -r frontend/dist/* release/frontend/
           cd release
-          zip -r ../cloud-nine-${{ steps.ver.outputs.version }}.zip .
+          zip -r ../cloud-nine-${VERSION}.zip .
 
-      - name: Create Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.ver.outputs.version }}
-          name: ${{ steps.ver.outputs.version }}
-          files: cloud-nine-${{ steps.ver.outputs.version }}.zip
+          tag_name: ${{ inputs.version }}
+          name: ${{ inputs.version }}
+          files: cloud-nine-${{ inputs.version }}.zip
           generate_release_notes: true
