@@ -38,7 +38,32 @@
 | 认证 | JWT (HS256) + PBKDF2 密码哈希 + 自动 Token 刷新 |
 | 部署 | Cloudflare Pages + Workers + GitHub Actions（同域 `<your-domain.com>`） |
 
-## 🚀 自动部署 (CI/CD)
+## 📦 大文件上传架构
+
+```
+多文件串行队列 → 逐个上传
+    ↓
+≤10MB → HTTP 直传 → sendDocument → TG
+>10MB → HTTP 分块(10MB) → 多个 sendDocument + record → TG
+>95MB → WebSocket 分卷(45MB) → Worker flush(5~16MB) → sendDocument → TG
+        全部卷完成 → complete → record → KV 元数据
+```
+
+- 多文件上传采用**前端串行队列**：全部显示在 TransferManager，逐个执行，避免并行打爆 TG 20条/分钟限制
+- 分卷大小 45MB，帧大小 256KB，发送间隔 65ms（~4MB/s）
+- 每个 flush 限制 5~16MB，setTimeout(0) 防止 Worker Hung
+
+## 🔒 下载架构
+
+```
+小文件(≤10MB): 直接流式转发 Telegram CDN
+大文件(>10MB): 分 chunk 串行下载 + Blob 拼接 + 进度条
+              每个 chunk 支持指数退避重试 + api.rawFetch 自动 Token 刷新
+多选下载:     逐个文件下载 → JSZip 前端打包 .zip → 自动保存
+分享批量下载: 同上，走分享 API 认证
+```
+
+## 🤖 自动部署 (CI/CD)
 
 项目已配置 GitHub Actions，`git push main` 自动触发部署。
 
@@ -78,31 +103,6 @@ Workflow 自动执行：
 2. 构建并部署前端 → `muleng-frontend`
 
 也可本地运行 `deploy.bat` 一键部署（需在项目根目录 `.env` 中设置 `CLOUDFLARE_API_TOKEN`）。
-
-## 📦 大文件上传架构
-
-```
-多文件串行队列 → 逐个上传
-    ↓
-≤10MB → HTTP 直传 → sendDocument → TG
->10MB → HTTP 分块(10MB) → 多个 sendDocument + record → TG
->95MB → WebSocket 分卷(45MB) → Worker flush(5~16MB) → sendDocument → TG
-        全部卷完成 → complete → record → KV 元数据
-```
-
-- 多文件上传采用**前端串行队列**：全部显示在 TransferManager，逐个执行，避免并行打爆 TG 20条/分钟限制
-- 分卷大小 45MB，帧大小 256KB，发送间隔 65ms（~4MB/s）
-- 每个 flush 限制 5~16MB，setTimeout(0) 防止 Worker Hung
-
-## 🔒 下载架构
-
-```
-小文件(≤10MB): 直接流式转发 Telegram CDN
-大文件(>10MB): 分 chunk 串行下载 + Blob 拼接 + 进度条
-              每个 chunk 支持指数退避重试 + api.rawFetch 自动 Token 刷新
-多选下载:     逐个文件下载 → JSZip 前端打包 .zip → 自动保存
-分享批量下载: 同上，走分享 API 认证
-```
 
 ## 🚀 手把手部署教程
 
