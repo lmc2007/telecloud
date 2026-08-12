@@ -199,14 +199,14 @@ cp worker/wrangler.example.jsonc worker/wrangler.jsonc
 1. Cloudflare Dashboard → 左侧菜单 **Workers KV**
 2. 点击 **Create Instance**
 3. 名称填 `tgdrive-kv`（随意），点击 **Add**
-4. 创建后会看到 ID，如 `e93083a3832c412fab0ba9a371fb0aa5`，**记录下来**，等下要用
+4. 创建后会看到 ID，如 `abc123def456`，**记录下来**，等下要用
 
 #### 2.2 创建 D1 数据库
 
 1. Cloudflare Dashboard → 左侧菜单 **D1**
 2. 点击 **Create database**
 3. 名称填 `tgdrive-db`，点击 **Create**
-4. 创建后看到 ID，如 `50be523a-7cef-41fb-b30c-2f5758b5be39`，**记录下来**
+4. 创建后看到 ID，如 `abc123def-4567-8901`，**记录下来**
 5. 点击数据库名进入详情 → 顶部标签 **Console**
 
 #### 执行数据库迁移

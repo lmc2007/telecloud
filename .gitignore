@@ -10,3 +10,4 @@ reasonix.toml
 .reasonix
 /wrangler.jsonc
 .aimax/
+worker/wrangler.jsonc
