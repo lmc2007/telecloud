@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build Worker
+        working-directory: worker
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Package Release
+        run: |
+          mkdir -p release/worker release/frontend
+          cp worker/dist/worker.js release/worker/worker.js
+          cp -r frontend/dist/* release/frontend/
+          cd release
+          zip -r ../cloud-nine-${{ github.ref_name }}.zip .
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          files: cloud-nine-${{ github.ref_name }}.zip
+          generate_release_notes: true
