@@ -331,7 +331,7 @@ def main():
         "ADMIN_PASSWORD": admin_pw,
         "WEBHOOK_SECRET": webhook_secret,
     }
-    env_extra = {"CLOUDFLARE_API_TOKEN": api_token}
+    env_extra = {"CLOUDFLARE_API_TOKEN": api_token, "CLOUDFLARE_ACCOUNT_ID": account_id}
     for name, value in worker_secrets.items():
         run_silent(f"npx wrangler secret put {name}", cwd=worker_dir, env=env_extra, stdin=value + "\n")
         print(f"    ✓ {name}")
