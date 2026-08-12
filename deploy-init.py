@@ -329,7 +329,7 @@ def main():
     clean_out = re.sub(r'\x1b\[[0-9;]*m', '', deploy_out)
     worker_url = None
     for line in clean_out.split("\n"):
-        m = re.search(r"https://([\w-]+\.workers\.dev)", line)
+        m = re.search(r"https://([\w.-]+\.workers\.dev)", line)
         if m:
             worker_url = f"https://{m.group(1)}"
             break
