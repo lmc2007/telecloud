@@ -85,7 +85,7 @@ npx wrangler secret put ADMIN_PASSWORD
 npx wrangler secret put WEBHOOK_SECRET
 ```
 
-> 提示：执行每条命令后会提示输入值。`TELEGRAM_BOT_TOKEN` 从 @BotFather 获取，`JWT_SECRET` 用 `openssl rand -hex 32` 生成。
+> 提示：执行每条命令后会提示输入值。`TELEGRAM_BOT_TOKEN` 从 @BotFather 获取，`JWT_SECRET` / `JWT_REFRESH_SECRET` 可用仓库中的 `python 生成密钥.py` 或 `openssl rand -hex 32` 生成。
 
 ### 第二步：设置 GitHub Secret（仅首次）
 
@@ -279,7 +279,7 @@ Worker → **Settings** → **Variables and Secrets**
 | 变量名 | 值 / 生成方式 |
 |--------|------|
 | `TELEGRAM_BOT_TOKEN` | 第一步从 BotFather 获取的 Token |
-| `JWT_SECRET` | 运行 `openssl rand -hex 32` 生成，或随便打一串 64 位随机字符 |
+| `JWT_SECRET` | 运行 `python 生成密钥.py` 或 `openssl rand -hex 32` 生成 |
 | `JWT_REFRESH_SECRET` | 同上，另一个不同的随机字符串 |
 | `ADMIN_PASSWORD` | 管理后台登录密码，自己设一个 |
 | `WEBHOOK_SECRET` | 同上，随机字符串 |
