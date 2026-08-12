@@ -296,9 +296,9 @@ export function ShareAccessPage() {
               </div>
             </motion.div>
           </div>
-        ) : files.length > 0 ? (
+        ) : (
           <>
-            {/* Breadcrumbs */}
+            {/* Breadcrumbs — always shown for folder shares regardless of file count */}
             {isFolderShare && breadcrumbs.length > 0 && (
               <div className="h-10 flex items-center px-4 overflow-x-auto flex-shrink-0"
                 style={{ background: 'rgba(245,245,247,0.7)', backdropFilter: 'blur(12px)', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
@@ -321,7 +321,8 @@ export function ShareAccessPage() {
               </div>
             )}
 
-            {/* Action bar */}
+            {files.length > 0 ? (
+              <>
             <div className="flex items-center justify-between px-4 py-2 flex-shrink-0" style={{ borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
               <div className="flex bg-[rgba(0,0,0,0.04)] rounded-full p-0.5">
                 {[{ m: "list" as ViewMode, ico: List }, { m: "grid" as ViewMode, ico: LayoutGrid }].map(({ m, ico: Icon }) => (
@@ -417,6 +418,9 @@ export function ShareAccessPage() {
           </div>
         )}
 
+          </>
+        )}
+
         {/* Context menu — mobile */}
         <AnimatePresence>
           {ctx && (
@@ -471,9 +475,9 @@ export function ShareAccessPage() {
             </div>
           </motion.div>
         </div>
-      ) : files.length > 0 ? (
+      ) : (
         <>
-          {/* Finder toolbar */}
+          {/* Finder toolbar — always shown for folder shares regardless of file count */}
           <div className="h-[60px] flex items-center justify-between px-5 flex-shrink-0"
             style={{ background: 'var(--bg-glass)', backdropFilter: 'blur(24px) saturate(180%)', borderBottom: '0.5px solid var(--border)' }}>
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -529,6 +533,9 @@ export function ShareAccessPage() {
               )}
             </div>
           </div>
+
+          {files.length > 0 ? (
+            <>
 
           {/* Bulk download progress bar */}
           <AnimatePresence>
@@ -590,6 +597,9 @@ export function ShareAccessPage() {
           </div>
         </div>
       )}
+
+          </>
+        )}
 
       {/* Context menu — desktop */}
       <AnimatePresence>
