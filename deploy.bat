@@ -1,69 +1,83 @@
 @echo off
-chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 echo ============================================
-echo  Cloud Nine 一键部署
+echo  Cloud Nine Deploy
 echo ============================================
 echo.
 
-if "%CLOUDFLARE_API_TOKEN%"=="" (
-    if exist .env (
-        for /f "tokens=1,2 delims==" %%a in (.env) do (
-            if "%%a"=="CLOUDFLARE_API_TOKEN" set CLOUDFLARE_API_TOKEN=%%b
-        )
-    )
+if not "%CLOUDFLARE_API_TOKEN%"=="" goto :have_token
+
+if not exist ".env" goto :no_env
+
+for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
+    if "%%a"=="CLOUDFLARE_API_TOKEN" set "CF_TOKEN=%%b"
 )
 
-if "%CLOUDFLARE_API_TOKEN%"=="" (
-    echo [错误] 未找到 CLOUDFLARE_API_TOKEN
-    echo 请在项目根目录 .env 文件中设置:
-    echo   CLOUDFLARE_API_TOKEN=your-token-here
-    exit /b 1
+if defined CF_TOKEN (
+    set "CLOUDFLARE_API_TOKEN=!CF_TOKEN!"
+    goto :have_token
 )
 
-echo [1/4] 构建后端 Worker...
+:no_env
+echo [ERROR] CLOUDFLARE_API_TOKEN not found
+echo Please create .env in project root with:
+echo   CLOUDFLARE_API_TOKEN=your-token-here
+pause
+exit /b 1
+
+:have_token
+echo [1/4] Building Worker...
 cd worker
 call npm run build
 if %ERRORLEVEL% neq 0 (
-    echo [失败] Worker 构建出错！
+    echo [FAIL] Worker build failed!
+    cd ..
+    pause
     exit /b 1
 )
-echo [完成] Worker 构建成功
+echo [OK] Worker build done
 
 echo.
-echo [2/4] 部署后端 Worker (tgdrive)...
+echo [2/4] Deploying Worker (tgdrive)...
 call npm run deploy
 if %ERRORLEVEL% neq 0 (
-    echo [失败] Worker 部署出错！
+    echo [FAIL] Worker deploy failed!
+    cd ..
+    pause
     exit /b 1
 )
-echo [完成] Worker 部署成功
+echo [OK] Worker deployed
+cd ..
 
 echo.
-echo [3/4] 构建前端...
-cd ..\frontend
+echo [3/4] Building Frontend...
+cd frontend
 call npm run build
 if %ERRORLEVEL% neq 0 (
-    echo [失败] 前端构建出错！
+    echo [FAIL] Frontend build failed!
+    cd ..
+    pause
     exit /b 1
 )
-echo [完成] 前端构建成功
+echo [OK] Frontend build done
 
 echo.
-echo [4/4] 部署前端 (muleng-frontend)...
+echo [4/4] Deploying Frontend (muleng-frontend)...
 call npm run deploy
 if %ERRORLEVEL% neq 0 (
-    echo [失败] 前端部署出错！
+    echo [FAIL] Frontend deploy failed!
+    cd ..
+    pause
     exit /b 1
 )
-echo [完成] 前端部署成功
+echo [OK] Frontend deployed
+cd ..
 
 echo.
 echo ============================================
-echo  全部部署完成！
-echo  前端: https://pan.muleng.dpdns.org
-echo  后端: https://pan.muleng.dpdns.org/api
+echo  Deploy complete!
+echo  Frontend: https://pan.muleng.dpdns.org
+echo  API:      https://pan.muleng.dpdns.org/api
 echo ============================================
-cd ..
 pause
