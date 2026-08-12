@@ -2,6 +2,7 @@
   "name": "tgdrive",
   "main": "dist/worker.js",
   "compatibility_date": "2025-07-01",
+  "account_id": "e29762e6e84d8d4cd8b716730d7b6de0",
   "observability": {
     "enabled": false,
     "head_sampling_rate": 1,
@@ -13,9 +14,16 @@
     }
   },
   "kv_namespaces": [
-    { "binding": "METADATA_KV", "id": "e93083a3832c412fab0ba9a371fb0aa5" }
+    {
+      "binding": "METADATA_KV",
+      "id": "e93083a3832c412fab0ba9a371fb0aa5"
+    }
   ],
   "d1_databases": [
-    { "binding": "DB", "database_name": "tgdrive-db", "database_id": "50be523a-7cef-41fb-b30c-2f5758b5be39" }
+    {
+      "binding": "DB",
+      "database_name": "tgdrive-db",
+      "database_id": "50be523a-7cef-41fb-b30c-2f5758b5be39"
+    }
   ]
 }
