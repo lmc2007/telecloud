@@ -153,6 +153,7 @@ def main():
         print(green("  ✓ Node.js 已安装"))
     except:
         print(red("  ✗ 未检测到 Node.js，请先安装 Node.js >= 18: https://nodejs.org"))
+        input("按 Enter 退出...")
         sys.exit(1)
 
     # 检测 worker/node_modules
@@ -191,6 +192,7 @@ def main():
         print(green(f"  ✓ 账户: {acc_name} ({account_id})"))
     if not account_id:
         print(red("  ✗ 无法获取账户 ID，请检查 API Token 权限"))
+        input("按 Enter 退出...")
         sys.exit(1)
 
     tg_token = ask("Telegram Bot Token", secret=True)
@@ -199,7 +201,8 @@ def main():
     worker_name = ask("Worker 项目名称", default="tgdrive")
     pages_name = ask("Pages 项目名称", default="tgdrive-pages")
     custom_domain = ask("自定义域名（可选，如 drive.example.com）", required=False)
-
+    if not custom_domain:
+        print("  将使用默认 workers.dev 域名")
     print()
 
     # ─── Step 2: 生成密钥 ───
@@ -426,7 +429,9 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\n\n已取消。")
+        input("按 Enter 退出...")
         sys.exit(0)
     except Exception as e:
         print(red(f"\n✗ 错误: {e}"))
+        input("按 Enter 退出...")
         sys.exit(1)
