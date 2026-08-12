@@ -198,9 +198,30 @@ cp worker/wrangler.example.jsonc worker/wrangler.jsonc
 3. 名称填 `tgdrive-db`，点击 **Create**
 4. 创建后看到 ID，如 `50be523a-7cef-41fb-b30c-2f5758b5be39`，**记录下来**
 5. 点击数据库名进入详情 → 顶部标签 **Console**
-6. 在 SQL 输入框中依次执行两个迁移文件的内容：
-   - 打开项目中的 `worker/migrations/0001_init.sql`，**复制全部内容** → 粘贴到 Console → 点击 **Execute**
-   - 打开 `worker/migrations/0002_admin_index.sql`，**复制全部内容** → 粘贴 → 点击 **Execute**
+
+#### 执行数据库迁移
+
+> D1 Console 每次只能执行一条 SQL 语句，直接粘贴整个迁移文件会失败。推荐使用以下两种方式之一：
+
+**方式 A：Wrangler CLI（推荐，一条命令）**
+
+确保已在 `worker/` 目录下安装依赖：
+
+```bash
+cd worker
+npm install
+npx wrangler d1 execute tgdrive-db --remote --file=migrations/0001_init.sql
+npx wrangler d1 execute tgdrive-db --remote --file=migrations/0002_admin_index.sql
+```
+
+**方式 B：D1 Console（逐条复制执行）**
+
+在 Dashboard Console 中，打开以下文件，**每次只复制一条 SQL 语句**（到分号 `;` 为止），粘贴到 Console 点击 **Execute**。跳过以 `--` 开头的注释行。
+
+1. `worker/migrations/0001_init.sql`：依次执行第 5、17、40、54 行的 `CREATE TABLE` + 4 条 `CREATE INDEX`
+2. `worker/migrations/0002_admin_index.sql`：依次执行第 5、7、28 行的 `DROP TABLE`/`CREATE TABLE` + 4 条 `CREATE INDEX`
+
+> 也可以将文件中的注释行（`--` 开头）删除后，选中所有 SQL 一次性执行。
 
 ---
 
