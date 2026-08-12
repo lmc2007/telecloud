@@ -327,9 +327,9 @@ npm run build   # 生成 dist/ 目录
 
 #### 4.4 配置环境变量
 
-部署完成后 → 顶部标签 **Settings** → **Environment variables**
+部署完成后 → 顶部标签 **Settings** → **Variables and Secrets** → 添加 **Plain text** 类型的环境变量
 
-点击 **Add variable**：
+点击 **Add** → 选择 **Plain text**：
 
 | 变量名 | 值 |
 |--------|-----|
@@ -351,7 +351,7 @@ npm run build   # 生成 dist/ 目录
 2. 输入子域名如 `drive.你的域名.com`，点击 **Continue** → **Activate domain**
 3. 进入 Worker → **Settings** → **Domains & Routes** → **Add route**
 4. Route 填 `drive.你的域名.com/api/*`，Zone 选你的域名，点击 **Add route**
-5. 回到 Pages → **Settings** → **Environment variables**，把 `VITE_API_BASE` 改为 `https://drive.你的域名.com/api`
+5. 回到 Pages → **Settings** → **Variables and Secrets**，编辑 `VITE_API_BASE` 为 `https://drive.你的域名.com/api`
 6. 重新部署一次 Pages 使变量生效
 
 ---
