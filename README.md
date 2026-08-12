@@ -339,14 +339,14 @@ npm run build   # 生成 dist/ 目录
 
 #### 4.3 上传文件
 
-1. 在 **Upload assets** 页面，拖入整个文件夹：
-   - Release 用户：拖入 `frontend/` 目录
+1. 在 **Upload assets** 页面：
+   - Release 用户：先打开 `frontend/index.html`，如需自定义 API 地址，取消注释 `<script>window.__TCD_API_BASE__ = ...</script>` 并填写域名，保存后拖入整个 `frontend/` 目录
    - 源码用户：拖入 `frontend/dist/` 目录
 2. 点击 **Deploy**，等待部署完成（约 10 秒）
 
-#### 4.4 配置 API 地址
+#### 4.4 配置 API 地址（Release 用户看这里）
 
-> API 地址现在通过 `index.html` 中的 `window.__TCD_API_BASE__` 运行时配置，**不再需要在构建时设置**。
+> API 地址通过 `index.html` 中的 `window.__TCD_API_BASE__` 运行时配置，**不需要构建时 `.env`**。
 
 **同域部署（推荐）**：将前端 Pages 和 API Worker 绑定到同一自定义域名（见第五步），无需任何额外配置，默认使用 `/api`。
 
