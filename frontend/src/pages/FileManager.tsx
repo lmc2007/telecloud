@@ -286,14 +286,19 @@ export function FileManager() {
   };
 
   const handleShareSelected = () => {
-    const items = filteredFiles.filter(f => selected.has(f.id));
+    let items = filteredFiles.filter(f => selected.has(f.id));
+    // Fallback: on pages that filter out folders (docs/images/videos/audio),
+    // selected folder IDs may not be in filteredFiles. Try the raw files list.
+    if (items.length === 0 && selected.size > 0) {
+      items = files.filter(f => selected.has(f.id));
+    }
     if (items.length === 0) return;
     // Allow multi-folder selection, but don't mix files and folders
     const folders = items.filter(f => f.type === "folder");
-    const files = items.filter(f => f.type === "file");
-    if (folders.length > 0 && files.length > 0) {
+    const pureFiles = items.filter(f => f.type === "file");
+    if (folders.length > 0 && pureFiles.length > 0) {
       // Mixed selection: only share files (existing behavior)
-      setShareFiles(files);
+      setShareFiles(pureFiles);
     } else {
       setShareFiles(items);
     }
