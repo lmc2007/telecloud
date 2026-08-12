@@ -33,9 +33,11 @@ interface ShareData {
   max_downloads?: number;
   is_multi?: boolean;
   is_folder?: boolean;
+  is_folders?: boolean;
   folder_name?: string;
   folder_id?: string;
   root_folder_id?: string;
+  root_folder_ids?: string[];
   breadcrumbs?: Breadcrumb[];
   file_name?: string; file_size?: number; file_type?: string; mime_type?: string;
   is_chunks?: boolean; created_at?: number;
@@ -273,7 +275,11 @@ export function ShareAccessPage() {
             <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0071E3, #5AC8FA)' }}>
               <Cloud className="w-3.5 h-3.5 text-white" strokeWidth={2} />
             </div>
-            <span className="text-[14px] font-semibold text-[var(--text-primary)]">分享的文件</span>
+            <span className="text-[14px] font-semibold text-[var(--text-primary)]">
+              {data?.is_folders && breadcrumbs.length === 0
+                ? `${files.length} 个共享文件夹`
+                : isFolderShare ? "分享的文件夹" : "分享的文件"}
+            </span>
           </button>
         </header>
 
@@ -472,7 +478,11 @@ export function ShareAccessPage() {
                 </div>
               ) : (
                 <h1 className="text-[26px] font-semibold tracking-tight truncate" style={{ color: 'var(--text)' }}>
-                  {isFolderShare ? data?.folder_name || "文件夹" : data?.is_multi ? "分享的文件" : files[0].name}
+                  {data?.is_folders && breadcrumbs.length === 0
+                    ? `${files.length} 个共享文件夹`
+                    : isFolderShare
+                    ? data?.folder_name || "文件夹"
+                    : data?.is_multi ? "分享的文件" : files[0]?.name || "分享的文件"}
                 </h1>
               )}
             </div>

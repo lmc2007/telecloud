@@ -108,8 +108,8 @@ async function atomicIncrementDownload(
 }
 
 /**
- * POST /api/shares — create share link (single file, multi-file, or folder)
- * Accepts file_id (legacy), file_ids (multi-file), or folder_id (folder share).
+ * POST /api/shares — create share link (single file, multi-file, single folder, or multi-folder)
+ * Accepts file_id (legacy), file_ids (multi-file), folder_id (single folder), or folder_ids (multi-folder).
  * Folder shares are dynamic: they reflect the folder's current contents at access time.
  */
 sharesRouter.post("/", authGuard, async (c) => {
@@ -118,24 +118,32 @@ sharesRouter.post("/", authGuard, async (c) => {
     file_id?: string;
     file_ids?: string[];
     folder_id?: string;
+    folder_ids?: string[];
     password?: string;
     expire_hours?: number;
     max_downloads?: number;
   }>();
 
-  // --- Folder share path ---
-  if (body.folder_id) {
-    const folderId = body.folder_id.trim();
-    if (!folderId) {
-      return c.json({ success: false, error: "缺少文件夹 ID" }, 400);
-    }
+  // Resolve folder IDs: folder_ids (multi) takes priority over folder_id (single)
+  const folderIds: string[] = (Array.isArray(body.folder_ids) && body.folder_ids.length > 0)
+    ? body.folder_ids.filter(id => id && id.trim())
+    : body.folder_id
+      ? [body.folder_id.trim()]
+      : [];
 
+  if (folderIds.length > 0) {
+    // Validate all folders exist and belong to user
     const { getFolderMeta } = await import("../storage/kv");
-    const folder = await getFolderMeta(c.env, folderId);
-    if (!folder) {
-      return c.json({ success: false, error: "文件夹不存在" }, 404);
+    const metas = await Promise.all(folderIds.map(id => getFolderMeta(c.env, id)));
+    const missing = folderIds.filter((_, i) => !metas[i]);
+    if (missing.length > 0) {
+      return c.json({ success: false, error: `文件夹不存在: ${missing.join(", ")}` }, 404);
     }
-    if (folder.user_id !== undefined && folder.user_id !== user.sub) {
+    const unauthorized = folderIds.filter((_, i) => {
+      const m = metas[i];
+      return m && m.user_id !== undefined && m.user_id !== user.sub;
+    });
+    if (unauthorized.length > 0) {
       return c.json({ success: false, error: "无权分享此文件夹" }, 403);
     }
 
@@ -146,7 +154,7 @@ sharesRouter.post("/", authGuard, async (c) => {
       : null;
     const hashedPassword = password ? await hashPassword(password) : null;
 
-    const folderIdJson = JSON.stringify([folderId]);
+    const folderIdJson = JSON.stringify(folderIds);
     const d1Result = await c.env.DB.prepare(
       `INSERT INTO shares (file_id, user_id, token, password, expire_at, max_downloads)
        VALUES (?, ?, ?, ?, ?, ?)`
@@ -158,10 +166,12 @@ sharesRouter.post("/", authGuard, async (c) => {
       return c.json({ success: false, error: "创建分享失败，请重试" }, 500);
     }
 
+    const isMultiFolder = folderIds.length > 1;
     const shareInfo = {
       token,
-      target_type: "folder" as const,
-      target_id: folderId,
+      target_type: (isMultiFolder ? "folders" : "folder") as "folder" | "folders",
+      target_id: isMultiFolder ? undefined : folderIds[0],
+      target_ids: isMultiFolder ? folderIds : undefined,
       creator_id: String(user.sub),
       created_at: Date.now(),
       expires_at: expireAt ? new Date(expireAt).getTime() : undefined,
@@ -278,12 +288,13 @@ sharesRouter.get("/", authGuard, async (c) => {
           fileIds = [s.file_id];
         }
 
-        // Check KV share info for target_type (folder vs file)
+        // Check KV share info for target_type (folder/file/folders)
         const kvShare = await c.env.METADATA_KV.get(`share:${s.token}`, "json") as any;
         const isFolder = kvShare?.target_type === "folder";
+        const isFolders = kvShare?.target_type === "folders";
 
         if (isFolder) {
-          // Folder share: resolve folder name
+          // Single-folder share: resolve folder name
           const folderMeta = fileIds[0] ? await getFolderMeta(c.env, fileIds[0]).catch(() => null) : null;
           return {
             id: s.id,
@@ -298,6 +309,29 @@ sharesRouter.get("/", authGuard, async (c) => {
             file_type: "folder",
             file_size: 0,
             file_count: 0,
+          };
+        }
+
+        if (isFolders) {
+          // Multi-folder share: resolve all folder names
+          const folderMetas = await Promise.all(
+            fileIds.map(id => getFolderMeta(c.env, id).catch(() => null))
+          );
+          const validMetas = folderMetas.filter(Boolean) as any[];
+          const folderNames = validMetas.map(m => m.name).join("、") || "(已删除)";
+          return {
+            id: s.id,
+            file_id: s.file_id,
+            token: s.token,
+            has_password: !!s.password,
+            expire_at: s.expire_at,
+            download_count: s.download_count,
+            max_downloads: s.max_downloads,
+            created_at: s.created_at,
+            file_name: `文件夹 (${fileIds.length} 个): ${folderNames}`,
+            file_type: "folder",
+            file_size: 0,
+            file_count: fileIds.length,
           };
         }
 
@@ -375,7 +409,8 @@ function resolveTargetIds(shareInfo: any): string[] {
 /**
  * GET /api/s/:token — access share (public, password-gated)
  * For file shares: returns file list.
- * For folder shares: dynamically resolves the folder's current contents (real-time sync).
+ * For single-folder shares: dynamically resolves the folder's current contents (real-time sync).
+ * For multi-folder shares: returns folder list at root, or folder contents when ?folder_id= is given.
  * Query params:
  *   ?pw=        — share password
  *   ?folder_id= — sub-folder to browse (folder shares only, defaults to root shared folder)
@@ -385,7 +420,7 @@ sharesRouter.get("/:token", async (c) => {
 
   const shareInfo = await c.env.METADATA_KV.get(`share:${token}`, "json") as {
     token: string;
-    target_type?: "file" | "folder";
+    target_type?: "file" | "folder" | "folders";
     target_id?: string;
     target_ids?: string[];
     creator_id?: string;
@@ -426,7 +461,92 @@ sharesRouter.get("/:token", async (c) => {
     }
   }
 
-  // --- Folder share: dynamic resolution ---
+  // --- Multi-folder share: root listing or sub-folder browse ---
+  if (shareInfo.target_type === "folders" && Array.isArray(shareInfo.target_ids) && shareInfo.target_ids.length > 0) {
+    const sharedFolderIds = shareInfo.target_ids;
+    const subFolderId = c.req.query("folder_id");
+    const creatorId = shareInfo.creator_id ? parseInt(shareInfo.creator_id) : 0;
+    const { getFolderMeta } = await import("../storage/kv");
+
+    // If browsing into a specific folder, validate and delegate to folder logic
+    if (subFolderId) {
+      // Validate: subFolderId must belong to the creator and be a folder
+      const folderMeta = await getFolderMeta(c.env, subFolderId);
+      if (!folderMeta || (folderMeta.user_id !== undefined && folderMeta.user_id !== creatorId)) {
+        return c.json({ success: false, error: "文件夹不存在" }, 404);
+      }
+
+      // Security: verify subFolderId is a descendant of one of the shared root folders
+      const breadcrumbs = await getFolderBreadcrumbs(c.env, subFolderId);
+      const isInScope = breadcrumbs.some(b => sharedFolderIds.includes(b.id))
+        || sharedFolderIds.includes(subFolderId);
+      if (!isInScope) {
+        return c.json({ success: false, error: "文件夹不存在" }, 404);
+      }
+
+      // Delegate to folder browse logic
+      const contents = await resolveFolderContents(c.env, subFolderId, creatorId);
+      const crumbs = await getFolderBreadcrumbs(c.env, subFolderId);
+
+      return c.json({
+        success: true,
+        data: {
+          is_folder: true,
+          is_folders: true,
+          folder_name: folderMeta.name,
+          folder_id: subFolderId,
+          root_folder_ids: sharedFolderIds,
+          breadcrumbs: crumbs,
+          files: contents.map((item, index) => ({
+            index,
+            id: item.id,
+            name: item.name,
+            type: item.type,
+            size: item.size,
+            mime_type: item.mime_type,
+            is_chunks: item.is_chunks,
+            chunks_count: item.chunks_count,
+          })),
+          has_password: !!shareInfo.password,
+          download_count: shareInfo.download_count,
+          max_downloads: shareInfo.max_downloads,
+        },
+      });
+    }
+
+    // Root listing: show all shared folders
+    const folderMetas = await Promise.all(
+      sharedFolderIds.map(async (id) => {
+        const meta = await getFolderMeta(c.env, id).catch(() => null);
+        return meta && (meta.user_id === undefined || meta.user_id === creatorId) ? meta : null;
+      })
+    );
+    const validFolders = folderMetas.filter(Boolean) as NonNullable<typeof folderMetas[number]>[];
+
+    return c.json({
+      success: true,
+      data: {
+        is_folder: true,
+        is_folders: true,
+        root_folder_ids: sharedFolderIds,
+        files: validFolders.map((meta, index) => ({
+          index,
+          id: meta.id,
+          name: meta.name,
+          type: "folder" as const,
+          size: 0,
+          mime_type: "",
+          is_chunks: false,
+          chunks_count: 0,
+        })),
+        has_password: !!shareInfo.password,
+        download_count: shareInfo.download_count,
+        max_downloads: shareInfo.max_downloads,
+      },
+    });
+  }
+
+  // --- Single-folder share: dynamic resolution ---
   if (shareInfo.target_type === "folder" && shareInfo.target_id) {
     const rootFolderId = shareInfo.target_id;
     const subFolderId = c.req.query("folder_id") || rootFolderId;
@@ -518,7 +638,8 @@ sharesRouter.get("/:token", async (c) => {
 /**
  * Resolve a specific file KV id by index from a share.
  * For file shares: looks up target_ids[fileIndex].
- * For folder shares: queries D1 for the folder's current children, picks by index.
+ * For folder shares (single or multi): queries D1 for the folder's current children, picks by index.
+ * Multi-folder shares require folderId to be provided (root level has no files, only folders).
  * Returns { kvId, fileMeta } or null.
  */
 async function resolveShareFileByIndex(
@@ -527,10 +648,11 @@ async function resolveShareFileByIndex(
   fileIndex: number,
   folderId?: string,
 ): Promise<{ kvId: string; fileMeta: any } | null> {
-  // Folder share: resolve from D1
-  if (shareInfo.target_type === "folder" && shareInfo.target_id) {
+  // Folder share (single or multi): resolve from D1
+  if ((shareInfo.target_type === "folder" || shareInfo.target_type === "folders") && (shareInfo.target_id || shareInfo.target_ids?.length > 0)) {
     const creatorId = shareInfo.creator_id ? parseInt(shareInfo.creator_id) : 0;
-    const targetFolder = folderId || shareInfo.target_id;
+    const targetFolder = folderId || (shareInfo.target_type === "folder" ? shareInfo.target_id : undefined);
+    if (!targetFolder) return null; // multi-folder share requires explicit folderId
     const contents = await resolveFolderContents(env, targetFolder, creatorId);
     const filesOnly = contents.filter(c => c.type === "file");
     if (fileIndex < 0 || fileIndex >= filesOnly.length) return null;
@@ -552,7 +674,7 @@ async function resolveShareFileByIndex(
 
 // Legacy helper kept for backward compat (used only by file-share paths)
 function getTargetFileId(shareInfo: any, fileIndex: number): string | null {
-  if (shareInfo.target_type === "folder") return null; // not applicable
+  if (shareInfo.target_type === "folder" || shareInfo.target_type === "folders") return null; // not applicable
   const ids = resolveTargetIds(shareInfo);
   if (fileIndex < 0 || fileIndex >= ids.length) return null;
   return ids[fileIndex];

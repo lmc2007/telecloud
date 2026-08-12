@@ -288,12 +288,14 @@ export function FileManager() {
   const handleShareSelected = () => {
     const items = filteredFiles.filter(f => selected.has(f.id));
     if (items.length === 0) return;
-    // Single folder → folder share; multi-select or file(s) → only files
-    if (items.length === 1 && items[0].type === "folder") {
-      setShareFiles(items);
+    // Allow multi-folder selection, but don't mix files and folders
+    const folders = items.filter(f => f.type === "folder");
+    const files = items.filter(f => f.type === "file");
+    if (folders.length > 0 && files.length > 0) {
+      // Mixed selection: only share files (existing behavior)
+      setShareFiles(files);
     } else {
-      const fileItems = items.filter(f => f.type === "file");
-      if (fileItems.length > 0) setShareFiles(fileItems);
+      setShareFiles(items);
     }
     setCtx(null);
   };

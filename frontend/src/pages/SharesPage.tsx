@@ -35,7 +35,7 @@ export function SharesPage() {
           <div key={s.id} className="card p-3 flex items-center gap-3">
             <FileIcon item={{ id: s.id, name: s.file_name, type: s.file_type === "folder" ? "folder" : "file", size: s.file_size, mime_type: "", created_at: 0, updated_at: 0 }} />
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">{s.file_name}{s.file_count > 1 ? ` (${s.file_count} 个文件)` : ""}</p>
+              <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">{s.file_name}{s.file_count > 1 && s.file_type !== "folder" ? ` (${s.file_count} 个文件)` : ""}</p>
               <p className="text-[11px] text-[var(--text-tertiary)]">
                 <Link to={`/s/${s.token}`} className="text-[var(--brand-blue)] hover:underline mr-2">/s/{s.token}</Link>
                 下载 {s.download_count}{s.max_downloads > 0 ? `/${s.max_downloads}` : ""}

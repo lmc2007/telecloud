@@ -223,14 +223,14 @@ FileManager (状态管理 + 布局编排)
 ├── FileGrid         # 网格视图：卡片 + hover 阴影 + 复选框多选
 ├── UploadZone       # 拖拽上传 + WS/HTTP 双模式
 ├── TransferManager  # 右下角传输进度浮窗
-├── ContextMenu      # 右键菜单 (单选:重命名/预览/下载/分享/移动/删除, 多选:下载/分享/移动/删除)
-├── ShareModal       # 分享弹窗 (支持文件/文件夹/批量分享)
+├── ContextMenu      # 右键菜单 (单选:重命名/预览/下载/分享/移动/删除, 多选:下载/分享/移动/删除, 支持多文件夹分享)
+├── ShareModal       # 分享弹窗 (支持文件/文件夹/多文件/多文件夹分享)
 ├── RenameModal      # 重命名弹窗
 ├── MoveModal        # 移动到弹窗 (支持批量移动+结果展示)
 ├── SettingsModal    # 设置弹窗（个人信息 + 改密码）
 ├── TrashPage        # 回收站页面
 ├── SharesPage       # 我的分享页面 (显示文件数量)
-└── ShareAccessPage  # 公开分享访问页 (/s/:token, 支持文件列表/文件夹浏览+全部下载.zip)
+└── ShareAccessPage  # 公开分享访问页 (/s/:token, 支持文件列表/文件夹浏览/多文件夹+全部下载.zip)
 ```
 
 ### 存储空间进度条
@@ -482,26 +482,29 @@ D1 `files.created_at` 列为 TEXT，存储 epoch 毫秒数字。查询时用 `pa
 
 | 变更点 | 说明 |
 |--------|------|
-| `POST /shares` | 新增接受 `folder_id` 字段（与 `file_id`/`file_ids` 互斥），在 KV 存 `target_type: "folder"` + `target_id` |
-| `GET /s/:token` | 文件夹分享返回 `is_folder: true`、`folder_name`、`breadcrumbs`（面包屑路径）、`files` 含 `type: "file"\|"folder"` 字段 |
-| `GET /s/:token?folder_id=` | 浏览子文件夹，后端验证子文件夹是分享根文件夹的后代（防止越权） |
-| 下载/chunk/stream | 新增 `folder_id` 参数，配合 `file_index` 定位子文件夹中的文件 |
-| `GET /shares` (列表) | 文件夹分享显示 "文件夹: xxx"，`file_type: "folder"` |
+| `POST /shares` | 接受 `folder_id`（单文件夹）或 `folder_ids`（多文件夹数组），KV 存 `target_type: "folder"\|"folders"` + `target_id`/`target_ids` |
+| `GET /s/:token` | 单文件夹返回 `is_folder: true` + 内容；多文件夹根层级返回 `is_folders: true` + 文件夹列表，点击进入后与单文件夹浏览一致 |
+| `GET /s/:token?folder_id=` | 浏览子文件夹，后端验证子文件夹是分享根文件夹的后代（防止越权）；多文件夹时验证在任一共享根文件夹范围内 |
+| 下载/chunk/stream | 新增 `folder_id` 参数，配合 `file_index` 定位子文件夹中的文件；多文件夹根层级无文件，仅可浏览文件夹 |
+| `GET /shares` (列表) | 单文件夹显示 "文件夹: xxx"，多文件夹显示 "文件夹 (N 个): xxx、yyy"，`file_type: "folder"` |
 
 **核心后端逻辑**：
 - `resolveFolderContents(env, folderId, userId)`：D1 查询 `WHERE parent_kv_id=? AND deleted=0 ORDER BY type DESC, name ASC`，实时反映当前文件夹内容
-- `resolveShareFileByIndex(env, shareInfo, fileIndex, folderId?)`：统一文件/文件夹分享的文件索引解析，文件夹分享从 D1 动态查询
+- `resolveShareFileByIndex(env, shareInfo, fileIndex, folderId?)`：统一文件/文件夹分享（含 `target_type: "folders"`）的文件索引解析，文件夹分享从 D1 动态查询；多文件夹需携带 `folderId`
 - `getFolderBreadcrumbs(env, folderId)`：沿 `parent_id` 链向上遍历（最多 20 层），生成面包屑路径
+- `getTargetFileId`：仅处理 `target_type !== "folder" && !== "folders"` 的文件分享路径
 
 **安全措施**：
 - 子文件夹浏览时验证 `user_id` 匹配分享者 + 沿 `parent_id` 链确认是分享根文件夹的后代
+- 多文件夹分享：验证 `subFolderId` 自身或祖先链中包含任一 `sharedFolderIds` 中的 ID
 - 批量下载前检查 `max_downloads` 配额（前端提示超出限制）
 
 **前端适配**：
-- `ShareAccessPage` 新增面包屑导航、文件夹可点击进入子文件夹、全部下载只打包当前层级文件（跳过子文件夹）
+- `ShareAccessPage` 新增面包屑导航、文件夹可点击进入子文件夹、全部下载只打包当前层级文件（跳过子文件夹）；多文件夹根层级显示 "N 个共享文件夹"
 - `ContextMenu` 文件夹也显示"分享"菜单项（不再仅限 `type === "file"`）
-- `FileManager.handleShareSelected` 智能过滤：单选文件夹 → 文件夹分享，多选 → 仅文件
-- `ShareModal` 检测 `isFolder` → 标题 "分享文件夹"，发送 `folder_id`
+- `FileManager.handleShareSelected`：纯文件夹多选 → 多文件夹分享，混选文件+文件夹 → 仅文件
+- `ShareModal` 检测所有文件类型：多文件夹时发送 `folder_ids`，标题 "分享文件夹"
+- `SharesPage` 多文件夹时显示 "文件夹 (N 个): xxx、yyy"，不重复显示文件数量
 
 ---
 
@@ -512,7 +515,7 @@ FileTable 和 FileGrid 均支持复选框多选。选中多个文件后右键菜
 | 操作 | 实现 |
 |------|------|
 | 下载 N 项 | 逐个下载文件（`downloadFileBlob` → `api.rawFetch`）→ JSZip 前端打包 `.zip` → 自动下载 |
-| 分享 N 项 | 单选文件夹 → `folder_id`；多选文件 → `file_ids` 数组 |
+| 分享 N 项 | 单选文件夹 → `folder_id`；多选文件夹 → `folder_ids`；多选文件 → `file_ids`；混选 → 仅文件 |
 | 移动到 N 项 | 逐个调用 `PUT /files/:id/move`，结果列表展示成功/失败 |
 | 删除 N 项 | 逐个调用 `DELETE /files/:id` |
 
@@ -659,10 +662,10 @@ Worker 的 WebSocket 路由在 `index.ts` 中同时兼容两种 path 格式：
 ### 分享
 | 方法 | 路径 | 认证 | 说明 |
 |---|---|---|---|
-| POST | `/api/shares` | JWT | 创建分享，支持 `file_id` (单文件) / `file_ids` (多文件) / `folder_id` (文件夹) |
-| GET | `/api/shares` | JWT | 我的分享列表，多文件显示 "N 个文件"，文件夹显示 "文件夹: xxx" |
+| POST | `/api/shares` | JWT | 创建分享，支持 `file_id` (单文件) / `file_ids` (多文件) / `folder_id` (单文件夹) / `folder_ids` (多文件夹) |
+| GET | `/api/shares` | JWT | 我的分享列表，多文件显示 "N 个文件"，文件夹显示 "文件夹: xxx" 或 "文件夹 (N 个): xxx" |
 | DELETE | `/api/shares/:id` | JWT | 取消分享 |
-| GET | `/api/s/:token` | ❌ | 访问分享，返回 `files[]`；文件夹分享返回 `is_folder`+`breadcrumbs`，支持 `?folder_id=` 子文件夹浏览 |
+| GET | `/api/s/:token` | ❌ | 访问分享，返回 `files[]`；单文件夹分享返回 `is_folder`+`breadcrumbs`，多文件夹返回 `is_folders`+文件夹列表，支持 `?folder_id=` 子文件夹浏览 |
 | POST | `/api/s/:token/download` | ❌ (密码可选) | 下载文件，body 可带 `file_index` + `folder_id` |
 | GET | `/api/s/:token/chunks` | ❌ (密码可选) | 分块元数据，query `?file_index=` + `?folder_id=` |
 | GET | `/api/s/:token/chunk/:index` | ❌ (密码可选) | 单 chunk 下载，query `?file_index=` + `?folder_id=` |
@@ -718,7 +721,7 @@ Worker 的 WebSocket 路由在 `index.ts` 中同时兼容两种 path 格式：
 
 `ShareAccessPage` 先 `GET /s/:token`（不带密码）→ 若返回 `{ need_password: true }` → 展示密码输入 UI → 用户提交后 `GET /s/:token?pw=xxx` → 获取完整文件信息 → 正常下载流程。
 
-**文件夹分享浏览流程**：若 `data.is_folder` → 面包屑导航（顶部层级路径可点击跳回）→ 文件夹条目点击进入子文件夹（`?folder_id=`）→ 文件条目正常下载/预览。下载/stream 请求均携带 `folder_id` 参数定位当前文件夹。全部下载 (.zip) 只打包当前层级文件，跳过子文件夹。批量下载前检查 `max_downloads` 配额。详见 [分享功能 > 文件夹分享](#文件夹分享动态实时同步)。
+**文件夹分享浏览流程**：若 `data.is_folder` → 面包屑导航（顶部层级路径可点击跳回）→ 文件夹条目点击进入子文件夹（`?folder_id=`）→ 文件条目正常下载/预览。多文件夹分享根层级先显示文件夹列表，点击后流程与单文件夹一致。下载/stream 请求均携带 `folder_id` 参数定位当前文件夹。全部下载 (.zip) 只打包当前层级文件，跳过子文件夹。批量下载前检查 `max_downloads` 配额。详见 [分享功能 > 文件夹分享](#文件夹分享动态实时同步)。
 
 ### 存储空间进度条
 

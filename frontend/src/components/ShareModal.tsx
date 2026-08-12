@@ -13,7 +13,8 @@ export function ShareModal({ files, onClose }: { files: FileItem[]; onClose: () 
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
 
-  const isFolder = files.length === 1 && files[0].type === "folder";
+  const isFolder = files.length > 0 && files.every(f => f.type === "folder");
+  const isMultiFolder = isFolder && files.length > 1;
 
   const handleCreate = async () => {
     if (files.length === 0) return;
@@ -25,8 +26,13 @@ export function ShareModal({ files, onClose }: { files: FileItem[]; onClose: () 
       if (expireHours) body.expire_hours = expireHours;
       if (maxDownloads) body.max_downloads = maxDownloads;
 
-      if (isFolder) {
-        // Folder share: send folder_id
+      if (isMultiFolder) {
+        // Multi-folder share
+        const ids = files.map(f => f.id).filter(Boolean);
+        if (ids.length === 0) { setError("没有有效的文件夹 ID"); setCreating(false); return; }
+        body.folder_ids = ids;
+      } else if (isFolder) {
+        // Single folder share
         if (!files[0].id) { setError("文件夹 ID 无效"); setCreating(false); return; }
         body.folder_id = files[0].id;
       } else if (files.length === 1) {
@@ -45,8 +51,10 @@ export function ShareModal({ files, onClose }: { files: FileItem[]; onClose: () 
   };
 
   const fileNames = files.map(f => f.name).join("、");
-  const title = isFolder ? "分享文件夹" : "分享文件";
-  const subtitle = isFolder
+  const title = isFolder ? (isMultiFolder ? "分享文件夹" : "分享文件夹") : "分享文件";
+  const subtitle = isMultiFolder
+    ? `${files.length} 个文件夹: ${fileNames}`
+    : isFolder
     ? files[0].name
     : files.length === 1 ? files[0].name : `${files.length} 个文件: ${fileNames}`;
 
