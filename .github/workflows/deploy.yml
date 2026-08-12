@@ -49,11 +49,11 @@ jobs:
           npx wrangler pages project create "${PAGES_NAME}" --production-branch=main 2>/dev/null || true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          PAGES_NAME: ${{ vars.PAGES_NAME || 'tgdrive-pages' }}
+          PAGES_NAME: ${{ vars.PAGES_NAME || 'muleng-frontend' }}
       - name: Deploy Frontend
         working-directory: frontend
         run: |
           npx wrangler pages deploy dist --project-name="${PAGES_NAME}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          PAGES_NAME: ${{ vars.PAGES_NAME || 'tgdrive-pages' }}
+          PAGES_NAME: ${{ vars.PAGES_NAME || 'muleng-frontend' }}
