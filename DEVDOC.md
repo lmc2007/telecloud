@@ -224,13 +224,13 @@ FileManager (状态管理 + 布局编排)
 ├── UploadZone       # 拖拽上传 + WS/HTTP 双模式
 ├── TransferManager  # 右下角传输进度浮窗
 ├── ContextMenu      # 右键菜单 (单选:重命名/预览/下载/分享/移动/删除, 多选:下载/分享/移动/删除, 支持多文件夹分享)
-├── ShareModal       # 分享弹窗 (支持文件/文件夹/多文件/多文件夹分享)
+├── ShareModal       # 分享弹窗 (支持文件/文件夹/多文件/多文件夹分享, 直接 React 树渲染)
 ├── RenameModal      # 重命名弹窗
 ├── MoveModal        # 移动到弹窗 (支持批量移动+结果展示)
 ├── SettingsModal    # 设置弹窗（个人信息 + 改密码）
 ├── TrashPage        # 回收站页面
 ├── SharesPage       # 我的分享页面 (显示文件数量)
-└── ShareAccessPage  # 公开分享访问页 (/s/:token, 支持文件列表/文件夹浏览/多文件夹+全部下载.zip)
+└── ShareAccessPage  # 公开分享访问页 (/s/:token, 支持文件列表/文件夹浏览/多文件夹+全部下载.zip+←返回)
 ```
 
 ### 存储空间进度条
@@ -500,10 +500,10 @@ D1 `files.created_at` 列为 TEXT，存储 epoch 毫秒数字。查询时用 `pa
 - 批量下载前检查 `max_downloads` 配额（前端提示超出限制）
 
 **前端适配**：
-- `ShareAccessPage` 新增面包屑导航、文件夹可点击进入子文件夹、全部下载只打包当前层级文件（跳过子文件夹）；多文件夹根层级显示 "N 个共享文件夹"
+- `ShareAccessPage` 新增面包屑导航、文件夹可点击进入子文件夹、全部下载只打包当前层级文件（跳过子文件夹）；多文件夹根层级显示 "N 个共享文件夹"；子文件夹页面新增 "← 返回" 按钮回到文件夹列表（`handleBackToFolderList` 清空 `currentFolderId` 重新加载根层级）
 - `ContextMenu` 文件夹也显示"分享"菜单项（不再仅限 `type === "file"`）
-- `FileManager.handleShareSelected`：纯文件夹多选 → 多文件夹分享，混选文件+文件夹 → 仅文件
-- `ShareModal` 检测所有文件类型：多文件夹时发送 `folder_ids`，标题 "分享文件夹"
+- `FileManager.handleShareSelected` / `handleMoveSelected`：使用 store 原始 `files` 而非 `filteredFiles` 查找选中项，避免搜索/分类页面过滤导致选中项丢失；纯文件夹多选 → 多文件夹分享，混选文件+文件夹 → 仅文件
+- `ShareModal` 检测所有文件类型：多文件夹时发送 `folder_ids`；直接 React 树渲染（移除 `createPortal` + `AnimatePresence`），`modal-overlay` 使用 `z-index: 9999` 确保层叠正确
 - `SharesPage` 多文件夹时显示 "文件夹 (N 个): xxx、yyy"，不重复显示文件数量
 
 ---
