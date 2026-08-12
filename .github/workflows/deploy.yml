@@ -41,8 +41,6 @@ jobs:
         run: |
           npm ci
           npm run build
-        env:
-          VITE_API_BASE: ${{ vars.VITE_API_BASE || '' }}
       - name: Ensure Pages project exists
         working-directory: frontend
         run: |

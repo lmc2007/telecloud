@@ -98,12 +98,15 @@ TG DRIVE/
 
 ## 前端 API 配置
 
-`frontend/src/lib/api.ts` 中 `API_BASE`：
+`frontend/src/lib/api.ts` 中 `API_BASE` 为纯运行时配置：
 ```ts
-const API_BASE = import.meta.env.VITE_API_BASE || "https://<your-domain.com>/api";
+// 优先级：
+//   1. window.__TCD_API_BASE__（通过 index.html 中的 <script> 标签设置）
+//   2. 同域 /api（默认，Pages + Worker 共享域名时无需配置）
+const API_BASE = window.__TCD_API_BASE__ || window.location.origin + "/api";
 ```
 
-`frontend/.env` 可覆盖，Cloudflare Pages Dashboard 环境变量 `VITE_API_BASE` 也可覆盖。
+配置方式：在构建产物 `index.html` 中找到注释的 `<script>` 标签，取消注释并设置域名即可。**不再需要构建时 `.env` 或 Cloudflare Pages 环境变量。**
 
 WebSocket URL 为 `wss://<your-domain.com>/api/ws/upload`。
 

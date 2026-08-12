@@ -99,9 +99,7 @@ npx wrangler secret put WEBHOOK_SECRET
 部署前可自定义 Worker 和 Pages 的项目名称：
 
 - **Pages 项目名**：GitHub 仓库 → Settings → Secrets and variables → Actions → **Variables** 标签 → **New repository variable**
-  - Name：`PAGES_NAME`，Value：你的 Pages 项目名（不设则默认 `tgdrive-pages`）
-- **API 地址**：同上添加 Variable
-  - Name：`VITE_API_BASE`，Value：`https://你的域名/api`
+  - Name：`PAGES_NAME`，Value：你的 Pages 项目名（不设则默认 `muleng-frontend`）
 - **Worker 项目名**：编辑 `worker/wrangler.jsonc`，修改 `"name"` 字段
 
 ### 第四步：推送即部署
@@ -190,23 +188,16 @@ cd telecloud
 
 项目中有两个示例配置文件，部署前需要复制并填入你自己的信息：
 
-**前端配置文件 `frontend/.env`：**
+**前端配置文件 — API 地址运行时配置：**
 
-```bash
-# 复制示例文件
-cp frontend/.env.example frontend/.env
+API 地址不再需要在构建时通过 `.env` 设置。构建产物 `index.html` 中有一行注释脚本，如需自定义域名，取消注释并填写即可：
+
+```html
+<!-- 在 dist/index.html 中找到并修改： -->
+<script>window.__TCD_API_BASE__ = "https://你的域名/api";</script>
 ```
 
-编辑 `frontend/.env`，**必须把域名替换为你自己的**（直接复制占位符会导致请求失败）：
-> ⚠️ 不要保留 `<>` 或 `你的域名` 这些占位符，必须换成真实域名。
-
-```
-# 示例：如果你的 Worker 域名是 tgdrive-api.xxx.workers.dev
-VITE_API_BASE=https://tgdrive-api.你的用户名.workers.dev/api
-
-# 示例：如果配置了自定义域名
-VITE_API_BASE=https://drive.example.com/api
-```
+如果前端和 Worker 部署在同一域名下（如 Cloudflare Pages + Worker 同域路由），**无需任何配置**，默认使用 `/api`。
 
 **Worker 配置文件 `worker/wrangler.jsonc`（可选）：**
 
@@ -353,33 +344,19 @@ npm run build   # 生成 dist/ 目录
    - 源码用户：拖入 `frontend/dist/` 目录
 2. 点击 **Deploy**，等待部署完成（约 10 秒）
 
-#### 4.4 配置环境变量
+#### 4.4 配置 API 地址
 
-> ⚠️ **重要**：`VITE_API_BASE` 是 Vite 构建时变量，只在 `npm run build` 时生效。如果你用的是"上传静态文件"方式（4.3），必须在构建前先配置好。
+> API 地址现在通过 `index.html` 中的 `window.__TCD_API_BASE__` 运行时配置，**不再需要在构建时设置**。
 
-**方式 A：构建前配置（推荐，适用于上传静态文件）**
+**同域部署（推荐）**：将前端 Pages 和 API Worker 绑定到同一自定义域名（见第五步），无需任何额外配置，默认使用 `/api`。
 
-在 `frontend/.env` 中设置（参考第一步源码配置文件说明），然后重新构建：
+**跨域部署**：如果需要不同域名，在构建产物 `dist/index.html` 中找到并取消注释：
 
-```bash
-cd frontend
-# 编辑 .env，设置 VITE_API_BASE=https://你的Worker域名/api
-npm run build
+```html
+<script>window.__TCD_API_BASE__ = "https://你的Worker域名/api";</script>
 ```
 
-然后回到 4.3 重新上传 `dist/` 目录部署。
-
-**方式 B：Pages Dashboard（仅对 CI/CD 自动构建生效）**
-
-如果你用 GitHub Actions 自动部署，在 Pages Dashboard 设置：
-
-部署完成后 → 顶部标签 **Settings** → **Variables and Secrets** → 添加 **Plain text** 类型：
-
-| 变量名 | 值 |
-|--------|-----|
-| `VITE_API_BASE` | `https://你的Worker域名/api` |
-
-> ⚠️ 此变量只在 Pages 自动构建（如 GitHub Actions）时生效。手动上传 `dist/` 不受此变量影响，必须用方式 A。
+如果使用 GitHub Actions 自动部署，可以将此 `<script>` 标签直接放入源码 `frontend/index.html` 中（去掉注释），并用环境变量或 Pages Variables 替换域名。
 
 ---
 
@@ -393,8 +370,8 @@ npm run build
 2. 输入子域名如 `drive.你的域名.com`，点击 **Continue** → **Activate domain**
 3. 进入 Worker → **Settings** → **Domains & Routes** → **Add route**
 4. Route 填 `drive.你的域名.com/api/*`，Zone 选你的域名，点击 **Add route**
-5. 回到 Pages → **Settings** → **Variables and Secrets**，编辑 `VITE_API_BASE` 为 `https://drive.你的域名.com/api`
-6. 回到 **Deployments** 标签 → **Upload assets** 重新上传 `dist/` 目录使变量生效
+
+配置完成！同域部署后 API 地址自动生效，无需额外设置。
 
 ---
 

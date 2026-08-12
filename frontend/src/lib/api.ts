@@ -1,6 +1,11 @@
-// API base URL — configurable via VITE_API_BASE env var.
-// Default: same-origin /api (works when Pages and Worker share the same domain).
-const API_BASE = import.meta.env.VITE_API_BASE || (typeof window !== "undefined" ? window.location.origin + "/api" : "/api");
+// API base URL — runtime configurable, no build-time env required.
+// Priority:
+//   1. window.__TCD_API_BASE__ (set via inline script in index.html or external config)
+//   2. Same-origin /api (works when Pages and Worker share the same domain)
+declare global { interface Window { __TCD_API_BASE__?: string; } }
+const API_BASE: string =
+  (typeof window !== "undefined" && window.__TCD_API_BASE__)
+  || (typeof window !== "undefined" ? window.location.origin + "/api" : "/api");
 
 export { API_BASE };
 
