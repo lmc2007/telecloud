@@ -289,14 +289,25 @@ def main():
             api_base = f"https://{worker_name}.{workers_dev}.workers.dev/api"
         else:
             api_base = f"https://{worker_name}.workers.dev/api"
-
-    with open(os.path.join(frontend_dir, ".env"), "w", encoding="utf-8") as f:
-        f.write(f"VITE_API_BASE={api_base}\n")
-    print(f"  VITE_API_BASE = {api_base}")
+    print(f"  API Base = {api_base}")
 
     print("  构建 Frontend...")
-    run_live("npm run build", cwd=frontend_dir, env={"VITE_API_BASE": api_base})
+    run_live("npm run build", cwd=frontend_dir)
     print(green("  ✓ Frontend 构建完成"))
+
+    # 将 API 地址注入到 index.html（替代运行时注释占位符）
+    dist_index = os.path.join(frontend_dir, "dist", "index.html")
+    with open(dist_index, "r", encoding="utf-8") as f:
+        html = f.read()
+    config_script = f'<script>window.__TCD_API_BASE__ = "{api_base}";</script>'
+    # 替换注释占位符（保持向后兼容：如果已有未注释的脚本则替换内容）
+    html = html.replace(
+        '<!-- <script>window.__TCD_API_BASE__ = "https://your-domain.com/api";</script> -->',
+        config_script
+    )
+    with open(dist_index, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"  ✓ 已注入 API 地址到 dist/index.html")
 
     print("  创建并部署 Pages...")
     run_silent(f"npx wrangler pages project create {pages_name} --production-branch=main",
@@ -304,21 +315,6 @@ def main():
     run_live(f"npx wrangler pages deploy dist --project-name={pages_name}",
              cwd=frontend_dir, env=env_extra)
     print(green("  ✓ Pages 部署完成"))
-
-    print("  设置 Pages 环境变量...")
-    try:
-        proj = cf_req("GET", f"/accounts/{account_id}/pages/projects/{pages_name}")
-        dc = proj.get("deployment_configs", {})
-    except:
-        dc = {}
-    prod = dc.get("production", {})
-    existing_env = prod.get("env_vars", {})
-    existing_env["VITE_API_BASE"] = {"value": api_base, "type": "plain_text"}
-    prod["env_vars"] = existing_env
-    dc["production"] = prod
-    cf_req("PATCH", f"/accounts/{account_id}/pages/projects/{pages_name}",
-           {"deployment_configs": dc})
-    print(green("  ✓ Pages 环境变量设置完成"))
 
     pages_url = f"https://{pages_name}.pages.dev"
 
