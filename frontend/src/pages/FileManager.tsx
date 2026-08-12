@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Cloud, Upload, Search, FolderPlus, Folder,
   ChevronRight, Home, LayoutGrid, List, Settings, LogOut, Menu,
-  Clock, Share2, Trash2, Archive, Download,
+  Clock, Share2, Trash2, Archive, Download, FolderInput,
 } from "lucide-react";
 import JSZip from "jszip";
 import { useNavigate } from "react-router-dom";
@@ -350,11 +350,22 @@ export function FileManager() {
 
              {/* Action bar */}
              <div className="flex items-center justify-between px-4 py-2" style={{ borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
-               <div className="flex bg-[rgba(0,0,0,0.04)] rounded-full p-0.5">
-                 {[{ m: "list" as ViewMode, ico: List }, { m: "grid" as ViewMode, ico: LayoutGrid }].map(({ m, ico: Icon }) => (
-                   <button key={m} onClick={() => setViewMode(m)} className={`p-1.5 rounded-full transition-colors ${viewMode === m ? "bg-white shadow-sm text-[#1D1D1F]" : "text-[#AEAEB2]"}`}><Icon className="w-3.5 h-3.5" /></button>
-                 ))}
-               </div>
+               {selected.size > 0 ? (
+                 <div className="flex items-center gap-2">
+                   <span className="text-[12px] font-medium text-[var(--text-secondary)] mr-1">已选 {selected.size} 项</span>
+                   <button onClick={handleShareSelected} className="btn-ghost text-[12px] flex items-center gap-1"><Share2 className="w-3.5 h-3.5" />分享</button>
+                   <button onClick={handleDownloadSelected} className="btn-ghost text-[12px] flex items-center gap-1"><Download className="w-3.5 h-3.5" />下载</button>
+                   <button onClick={handleMoveSelected} className="btn-ghost text-[12px] flex items-center gap-1"><FolderInput className="w-3.5 h-3.5" />移动</button>
+                   <div className="w-px h-4 bg-[var(--border-light)] mx-1" />
+                   <button onClick={handleDeleteSelected} className="btn-ghost text-[12px] flex items-center gap-1 text-[var(--brand-red)]"><Trash2 className="w-3.5 h-3.5" />删除</button>
+                 </div>
+               ) : (
+                 <div className="flex bg-[rgba(0,0,0,0.04)] rounded-full p-0.5">
+                   {[{ m: "list" as ViewMode, ico: List }, { m: "grid" as ViewMode, ico: LayoutGrid }].map(({ m, ico: Icon }) => (
+                     <button key={m} onClick={() => setViewMode(m)} className={`p-1.5 rounded-full transition-colors ${viewMode === m ? "bg-white shadow-sm text-[#1D1D1F]" : "text-[#AEAEB2]"}`}><Icon className="w-3.5 h-3.5" /></button>
+                   ))}
+                 </div>
+               )}
                <div className="flex items-center gap-1.5">
                  <button onClick={() => setShowNewFolder(true)} className="btn-ghost"><FolderPlus className="w-4 h-4" /></button>
                  <button onClick={() => window.dispatchEvent(new Event("tcd:open-upload"))} className="btn-primary text-[12px]"><Upload className="w-3 h-3" />上传</button>
@@ -414,10 +425,18 @@ export function FileManager() {
 
           {/* Status bar */}
           {currentPage !== "trash" && currentPage !== "shares" && (
-            <div className="h-7 flex items-center px-4 bg-[rgba(0,0,0,0.03)] border-t border-[var(--border-light)]">
-              <span className="text-[11px] text-[#86868B]">
-                {selected.size > 0 ? `已选择 ${selected.size} 项` : `${filteredFiles.length} 个项目`}
-              </span>
+            <div className="h-7 flex items-center px-4 bg-[rgba(0,0,0,0.03)] border-t border-[var(--border-light)] gap-1 overflow-x-auto">
+              {selected.size > 0 ? (
+                <>
+                  <span className="text-[10px] font-medium text-[#86868B] mr-0.5 flex-shrink-0">已选{selected.size}项</span>
+                  <button onClick={handleShareSelected} className="text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[var(--brand-blue)] flex-shrink-0"><Share2 className="w-3 h-3" />分享</button>
+                  <button onClick={handleDownloadSelected} className="text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[#86868B] flex-shrink-0"><Download className="w-3 h-3" />下载</button>
+                  <button onClick={handleMoveSelected} className="text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[#86868B] flex-shrink-0"><FolderInput className="w-3 h-3" />移动</button>
+                  <button onClick={handleDeleteSelected} className="text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[var(--brand-red)] flex-shrink-0"><Trash2 className="w-3 h-3" />删除</button>
+                </>
+              ) : (
+                <span className="text-[11px] text-[#86868B]">{filteredFiles.length} 个项目</span>
+              )}
             </div>
           )}
           <div className="h-4" />
@@ -637,9 +656,19 @@ export function FileManager() {
           {currentPage !== "trash" && currentPage !== "shares" && (
             <div className="h-8 flex items-center justify-between px-4 flex-shrink-0"
               style={{ background: 'var(--bg-glass)', borderTop: '0.5px solid var(--border)' }}>
-              <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
-                {selected.size > 0 ? `已选择 ${selected.size} 项` : `${filteredFiles.length} 个项目`}
-              </span>
+              {selected.size > 0 ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] font-medium text-[var(--text-secondary)] mr-1">已选 {selected.size} 项</span>
+                  <button onClick={handleShareSelected} className="btn-ghost text-[11px] flex items-center gap-0.5 px-1.5 py-0.5"><Share2 className="w-3 h-3" />分享</button>
+                  <button onClick={handleDownloadSelected} className="btn-ghost text-[11px] flex items-center gap-0.5 px-1.5 py-0.5"><Download className="w-3 h-3" />下载</button>
+                  <button onClick={handleMoveSelected} className="btn-ghost text-[11px] flex items-center gap-0.5 px-1.5 py-0.5"><FolderInput className="w-3 h-3" />移动</button>
+                  <button onClick={handleDeleteSelected} className="btn-ghost text-[11px] flex items-center gap-0.5 px-1.5 py-0.5 text-[var(--brand-red)]"><Trash2 className="w-3 h-3" />删除</button>
+                </div>
+              ) : (
+                <span className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                  {`${filteredFiles.length} 个项目`}
+                </span>
+              )}
               <span className="text-[11px] hidden sm:inline" style={{ color: 'var(--text-tertiary)' }}>
                 {selected.size > 0 ? "" : totalSize > 0 ? fmtSize(totalSize) : ""}
               </span>

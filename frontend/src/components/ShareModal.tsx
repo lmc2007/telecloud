@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Share2 } from "lucide-react";
 import type { FileItem } from "../stores/fileStore";
@@ -58,7 +59,7 @@ export function ShareModal({ files, onClose }: { files: FileItem[]; onClose: () 
     ? files[0].name
     : files.length === 1 ? files[0].name : `${files.length} 个文件: ${fileNames}`;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {files.length > 0 && (
         <motion.div className="modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -106,6 +107,7 @@ export function ShareModal({ files, onClose }: { files: FileItem[]; onClose: () 
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
