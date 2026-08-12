@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "deploy": "wrangler pages deploy dist --project-name=muleng-frontend"
+    "deploy": "wrangler pages deploy dist --project-name=${PAGES_NAME:-tgdrive-pages}"
   },
   "dependencies": {
     "framer-motion": "^11.2.0",

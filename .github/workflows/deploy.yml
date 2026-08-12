@@ -42,9 +42,10 @@ jobs:
           npm ci
           npm run build
         env:
-          VITE_API_BASE: ${{ vars.VITE_API_BASE || 'https://pan.muleng.dpdns.org/api' }}
+          VITE_API_BASE: ${{ vars.VITE_API_BASE || '' }}
       - name: Deploy Frontend
         working-directory: frontend
         run: npm run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PAGES_NAME: ${{ vars.PAGES_NAME || 'tgdrive-pages' }}

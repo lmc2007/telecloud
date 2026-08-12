@@ -6,27 +6,33 @@ echo  Cloud Nine Deploy
 echo ============================================
 echo.
 
-if not "%CLOUDFLARE_API_TOKEN%"=="" goto :have_token
+:: Defaults
+set "WORKER_NAME=tgdrive"
+set "PAGES_NAME=tgdrive-pages"
+set "DOMAIN="
 
-if not exist ".env" goto :no_env
-
-for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
-    if "%%a"=="CLOUDFLARE_API_TOKEN" set "CF_TOKEN=%%b"
+:: Load .env
+if exist ".env" (
+    for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
+        if "%%a"=="CLOUDFLARE_API_TOKEN" set "CLOUDFLARE_API_TOKEN=%%b"
+        if "%%a"=="WORKER_NAME" if not "%%b"=="" set "WORKER_NAME=%%b"
+        if "%%a"=="PAGES_NAME" if not "%%b"=="" set "PAGES_NAME=%%b"
+        if "%%a"=="DOMAIN" if not "%%b"=="" set "DOMAIN=%%b"
+    )
 )
 
-if defined CF_TOKEN (
-    set "CLOUDFLARE_API_TOKEN=!CF_TOKEN!"
-    goto :have_token
+if "%CLOUDFLARE_API_TOKEN%"=="" (
+    echo [ERROR] CLOUDFLARE_API_TOKEN not found
+    echo Please create .env in project root with:
+    echo   CLOUDFLARE_API_TOKEN=your-token-here
+    pause
+    exit /b 1
 )
 
-:no_env
-echo [ERROR] CLOUDFLARE_API_TOKEN not found
-echo Please create .env in project root with:
-echo   CLOUDFLARE_API_TOKEN=your-token-here
-pause
-exit /b 1
+echo [Config] Worker: %WORKER_NAME%  Pages: %PAGES_NAME%
+if not "%DOMAIN%"=="" echo [Config] Domain: %DOMAIN%
+echo.
 
-:have_token
 echo [1/4] Building Worker...
 cd worker
 call npm run build
@@ -39,7 +45,7 @@ if %ERRORLEVEL% neq 0 (
 echo [OK] Worker build done
 
 echo.
-echo [2/4] Deploying Worker (tgdrive)...
+echo [2/4] Deploying Worker (%WORKER_NAME%)...
 call npm run deploy
 if %ERRORLEVEL% neq 0 (
     echo [FAIL] Worker deploy failed!
@@ -63,8 +69,8 @@ if %ERRORLEVEL% neq 0 (
 echo [OK] Frontend build done
 
 echo.
-echo [4/4] Deploying Frontend (muleng-frontend)...
-call npm run deploy
+echo [4/4] Deploying Frontend (%PAGES_NAME%)...
+call npx wrangler pages deploy dist --project-name=%PAGES_NAME%
 if %ERRORLEVEL% neq 0 (
     echo [FAIL] Frontend deploy failed!
     cd ..
@@ -77,7 +83,12 @@ cd ..
 echo.
 echo ============================================
 echo  Deploy complete!
-echo  Frontend: https://pan.muleng.dpdns.org
-echo  API:      https://pan.muleng.dpdns.org/api
+if "%DOMAIN%"=="" (
+    echo  Frontend: https://%PAGES_NAME%.pages.dev
+    echo  API:      https://%WORKER_NAME%.workers.dev/api
+) else (
+    echo  Frontend: https://%DOMAIN%
+    echo  API:      https://%DOMAIN%/api
+)
 echo ============================================
 pause
