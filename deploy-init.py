@@ -289,7 +289,7 @@ def main():
     print(green("  ✓ Worker 部署完成"))
 
     print("  设置 Worker Secrets...")
-    secrets = {
+    worker_secrets = {
         "TELEGRAM_BOT_TOKEN": tg_token,
         "TELEGRAM_CHANNEL_ID": tg_chat_id,
         "JWT_SECRET": jwt_secret,
@@ -298,7 +298,7 @@ def main():
         "WEBHOOK_SECRET": webhook_secret,
     }
     env_extra = {"CLOUDFLARE_API_TOKEN": api_token}
-    for name, value in secrets.items():
+    for name, value in worker_secrets.items():
         run_silent(f"npx wrangler secret put {name}", cwd=worker_dir, env=env_extra, stdin=value + "\n")
         print(f"    ✓ {name}")
     print(green("  ✓ Secrets 设置完成"))
