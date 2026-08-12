@@ -212,8 +212,11 @@ def main():
     print(bold("── 第二步：生成密钥 ──"))
     jwt_secret = base64.b64encode(secrets.token_bytes(64)).decode()
     jwt_refresh = base64.b64encode(secrets.token_bytes(64)).decode()
-    admin_pw = ''.join(secrets.choice(string.ascii_letters + string.digits + "!@#$%^&*") for _ in range(12))
     webhook_secret = base64.b64encode(secrets.token_bytes(32)).decode()
+    # 随机生成管理员密码，用户可以自定义
+    random_pw = ''.join(secrets.choice(string.ascii_letters + string.digits + "!@#$%^&*") for _ in range(12))
+    print(f"  随机生成的管理员密码: {random_pw}")
+    admin_pw = ask("管理员密码（回车使用随机密码）", default=random_pw, secret=True)
     print(f"  JWT_SECRET:        {jwt_secret[:24]}...")
     print(f"  JWT_REFRESH_SECRET:{jwt_refresh[:24]}...")
     print(f"  ADMIN_PASSWORD:    {admin_pw}")
