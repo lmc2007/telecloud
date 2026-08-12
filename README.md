@@ -40,12 +40,27 @@
 
 ## 🚀 自动部署 (CI/CD)
 
-项目已配置 GitHub Actions，`git push main` 自动触发：
+项目已配置 GitHub Actions，`git push main` 自动触发部署。
 
-1. 构建 Worker → `wrangler deploy` 到 `tgdrive`
-2. 构建前端 → `wrangler pages deploy` 到 `muleng-frontend`
+> ⚠️ **首次使用前必须配置**，否则 Workflow 会失败：
 
-**前置条件**：GitHub Settings → Secrets → 添加 `CLOUDFLARE_API_TOKEN`
+### 第一步：设置 GitHub Secret
+
+1. 打开 https://github.com/lmc2007/telecloud/settings/secrets/actions
+2. 点击 **New repository secret**
+3. Name：`CLOUDFLARE_API_TOKEN`
+4. Secret：你的 Cloudflare API Token
+5. 点击 **Add secret**
+
+### 第二步：推送即部署
+
+```bash
+git push main
+```
+
+Workflow 自动执行：
+1. 构建并部署 Worker → `tgdrive`
+2. 构建并部署前端 → `muleng-frontend`
 
 也可本地运行 `deploy.bat` 一键部署（需在项目根目录 `.env` 中设置 `CLOUDFLARE_API_TOKEN`）。
 
