@@ -431,8 +431,11 @@ def main():
     print(f"  API 地址:   {api_base}")
     print()
     print(f"  管理后台密码: {bold(admin_pw)}")
-    print(f"  首次部署后访问 {api_base.rstrip('/api')}/api/admin/login")
-    print(f"  用以上密码登录，然后访问 /api/admin/migrate 完成数据回填。")
+    if custom_domain:
+        print(f"  管理后台:   https://{custom_domain}/admin")
+    else:
+        print(f"  管理后台:   {pages_url}/admin")
+    print(f"  用以上密码登录后，在管理后台执行「数据回填」完成初始化。")
     print()
     print(f"  JWT_SECRET:         {jwt_secret}")
     print(f"  JWT_REFRESH_SECRET: {jwt_refresh}")
