@@ -297,7 +297,7 @@ def main():
     env_extra = {"CLOUDFLARE_API_TOKEN": api_token, "CLOUDFLARE_ACCOUNT_ID": account_id}
     for migration in ["0001_init.sql", "0002_admin_index.sql"]:
         mpath = os.path.join(worker_dir, "migrations", migration)
-        run_live(f"npx wrangler d1 execute {worker_name}-db --remote --file={mpath}",
+        run_live(f'npx wrangler d1 execute {worker_name}-db --remote --file="{mpath}"',
                  cwd=worker_dir, env=env_extra)
     print(green("  ✓ 迁移完成"))
 
