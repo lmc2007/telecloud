@@ -135,13 +135,43 @@ def main():
     print("  5. (可选) 配置自定义域名和路由")
     print()
     print("前提条件：")
-    print("  - 已安装 Node.js >= 18")
-    print("  - 在 worker/ 和 frontend/ 目录下执行过 npm install")
+    print("  - 已安装 Node.js >= 18（脚本会自动检测）")
     print()
 
     root = project_root()
     worker_dir = os.path.join(root, "worker")
     frontend_dir = os.path.join(root, "frontend")
+
+    # ─── Step 0: 依赖检测 ───
+
+    print(bold("── 第零步：检测依赖 ──"))
+    print()
+
+    # 检测 Node.js
+    try:
+        run_silent("node --version")
+        print(green("  ✓ Node.js 已安装"))
+    except:
+        print(red("  ✗ 未检测到 Node.js，请先安装 Node.js >= 18: https://nodejs.org"))
+        sys.exit(1)
+
+    # 检测 worker/node_modules
+    if os.path.exists(os.path.join(worker_dir, "node_modules")):
+        print("  ✓ worker 依赖已安装")
+    else:
+        print("  ⟳ 安装 worker 依赖...")
+        run_live("npm install", cwd=worker_dir)
+        print(green("  ✓ worker 依赖安装完成"))
+
+    # 检测 frontend/node_modules
+    if os.path.exists(os.path.join(frontend_dir, "node_modules")):
+        print("  ✓ frontend 依赖已安装")
+    else:
+        print("  ⟳ 安装 frontend 依赖...")
+        run_live("npm install", cwd=frontend_dir)
+        print(green("  ✓ frontend 依赖安装完成"))
+
+    print()
 
     # ─── Step 1: 收集信息 ───
 

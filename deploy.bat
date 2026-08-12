@@ -33,6 +33,40 @@ echo [Config] Worker: %WORKER_NAME%  Pages: %PAGES_NAME%
 if not "%DOMAIN%"=="" echo [Config] Domain: %DOMAIN%
 echo.
 
+:: Check & install dependencies
+echo [0/5] Checking dependencies...
+if not exist "worker\node_modules" (
+    echo   Installing worker dependencies...
+    cd worker
+    call npm install
+    if %ERRORLEVEL% neq 0 (
+        echo [FAIL] worker npm install failed!
+        cd ..
+        pause
+        exit /b 1
+    )
+    cd ..
+    echo   [OK] worker dependencies installed
+) else (
+    echo   [OK] worker dependencies found
+)
+if not exist "frontend\node_modules" (
+    echo   Installing frontend dependencies...
+    cd frontend
+    call npm install
+    if %ERRORLEVEL% neq 0 (
+        echo [FAIL] frontend npm install failed!
+        cd ..
+        pause
+        exit /b 1
+    )
+    cd ..
+    echo   [OK] frontend dependencies installed
+) else (
+    echo   [OK] frontend dependencies found
+)
+echo.
+
 echo [1/5] Building Worker...
 cd worker
 call npm run build
@@ -67,6 +101,15 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 echo [OK] Frontend build done
+
+:: Inject runtime API config if domain is set
+cd ..
+if not "%DOMAIN%"=="" (
+    echo   Injecting API base: https://%DOMAIN%/api
+    powershell -NoProfile -Command ^
+      "(Get-Content frontend\dist\index.html) -replace '<!-- <script>window.__TCD_API_BASE__ = .*?</script> -->', '<script>window.__TCD_API_BASE__ = \"https://%DOMAIN%/api\";</script>' | Set-Content frontend\dist\index.html"
+    echo   [OK] API base injected
+)
 
 echo.
 echo [4/5] Ensuring Pages project exists (%PAGES_NAME%)...
