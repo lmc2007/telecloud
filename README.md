@@ -36,7 +36,18 @@
 | 后端 | Hono (CF Workers) + TypeScript + WebSocket |
 | 存储 | Telegram Supergroup + Cloudflare KV + D1 |
 | 认证 | JWT (HS256) + PBKDF2 密码哈希 + 自动 Token 刷新 |
-| 部署 | Cloudflare Pages + Workers（同域 `<your-domain.com>`） |
+| 部署 | Cloudflare Pages + Workers + GitHub Actions（同域 `<your-domain.com>`） |
+
+## 🚀 自动部署 (CI/CD)
+
+项目已配置 GitHub Actions，`git push main` 自动触发：
+
+1. 构建 Worker → `wrangler deploy` 到 `tgdrive`
+2. 构建前端 → `wrangler pages deploy` 到 `muleng-frontend`
+
+**前置条件**：GitHub Settings → Secrets → 添加 `CLOUDFLARE_API_TOKEN`
+
+也可本地运行 `deploy.bat` 一键部署（需在项目根目录 `.env` 中设置 `CLOUDFLARE_API_TOKEN`）。
 
 ## 📦 大文件上传架构
 

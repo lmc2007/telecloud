@@ -81,15 +81,18 @@ TG DRIVE/
 │   │   ├── pages/
 │   │   │   ├── Landing.tsx         # 着陆页
 │   │   │   ├── Login.tsx           # 登录/注册
-│   │   │   ├── FileManager.tsx     # 主文件管理器 (~400行, 状态 + 布局编排)
+│   │   │   ├── FileManager.tsx     # 主文件管理器 (~400行, 状态 + 布局编排, 双轨渲染)
 │   │   │   ├── TrashPage.tsx       # 回收站
 │   │   │   ├── SharesPage.tsx      # 我的分享
 │   │   │   ├── ShareAccessPage.tsx # 公开分享访问页 (/s/:token)
 │   │   │   └── AdminPanel.tsx      # 管理后台
 │   │   └── styles/globals.css      # Tailwind + 123云盘设计系统
 │   ├── public/_redirects / _headers
-│   ├── package.json              # react + zustand + framer-motion + lucide + jszip + tailwind
+│   ├── package.json              # react + zustand + framer-motion + lucide + jszip + tailwind + wrangler
 │   └── tsconfig.json
+├── .github/workflows/
+│   └── deploy.yml                # GitHub Actions 自动部署 (push main 触发)
+├── deploy.bat                    # 本地一键部署脚本
 └── DEVDOC.md
 ```
 
@@ -109,12 +112,41 @@ WebSocket URL 为 `wss://<your-domain.com>/api/ws/upload`。
 ```bash
 # Worker
 cd worker && npm install
-npx esbuild src/index.ts --bundle --format=esm --target=es2022 \
-  --outfile=dist/worker.js --platform=browser --external:cloudflare:workers
+npm run build   # esbuild → dist/worker.js
 
 # 前端
 cd frontend && npm install
 npm run build   # tsc --noEmit && vite build → dist/
+```
+
+## 部署
+
+### 自动部署 (GitHub Actions)
+
+`git push` 到 `main` 分支自动触发，`.github/workflows/deploy.yml`：
+
+1. 构建并部署 Worker (`tgdrive`) → `wrangler deploy`
+2. 构建并部署前端 (`muleng-frontend`) → `wrangler pages deploy`
+
+需要 GitHub Secret：`CLOUDFLARE_API_TOKEN`
+
+### 手动部署 (本地脚本)
+
+```bash
+# 项目根目录 .env 中设置:
+# CLOUDFLARE_API_TOKEN=xxx
+
+deploy.bat   # 依次构建并部署 Worker + 前端
+```
+
+或单步部署：
+
+```bash
+# Worker
+cd worker && npm run build && npm run deploy
+
+# 前端
+cd frontend && npm run build && npm run deploy
 ```
 
 ---
@@ -684,11 +716,11 @@ Worker 的 WebSocket 路由在 `index.ts` 中同时兼容两种 path 格式：
 
 ---
 
-## 部署流程
+## 首次部署检查清单
 
 1. D1 执行 `migrations/0001_init.sql`
 2. D1 执行 `migrations/0002_admin_index.sql`
-3. 部署 `worker/dist/worker.js` 到 Cloudflare Workers
-4. 部署 `frontend/dist/` 到 Cloudflare Pages
+3. 设置 GitHub Secret `CLOUDFLARE_API_TOKEN`
+4. `git push main` 触发自动部署（或运行 `deploy.bat`）
 5. 访问 `GET /api/admin/migrate` 回填 KV 数据到 D1（一次性）
 6. 验证管理后台概览数字正常
