@@ -187,7 +187,7 @@ cp worker/wrangler.example.jsonc worker/wrangler.jsonc
 #### 2.1 创建 KV 命名空间
 
 1. Cloudflare Dashboard → 左侧菜单 **Workers KV**
-2. 点击 **Create namespace**
+2. 点击 **Create Instance**
 3. 名称填 `tgdrive-kv`（随意），点击 **Add**
 4. 创建后会看到 ID，如 `e93083a3832c412fab0ba9a371fb0aa5`，**记录下来**，等下要用
 
