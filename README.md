@@ -288,7 +288,7 @@ Worker → **Settings** → **Variables and Secrets**
 
 #### 3.5 绑定 KV 和 D1
 
-Worker → **Settings** → **Bindings**
+Worker → **Bindings**（绑定）
 
 1. 点击 **+ Add** → 选择 **KV Namespace**
    - 变量名：`METADATA_KV`
