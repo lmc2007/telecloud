@@ -8,5 +8,5 @@ dist/
 .reasonix/
 reasonix.toml
 .reasonix
-wrangler.jsonc
+/wrangler.jsonc
 .aimax/
