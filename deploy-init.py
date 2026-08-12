@@ -322,8 +322,28 @@ def main():
     print(green("  ✓ Worker 构建完成"))
 
     print("  部署 Worker...")
-    run_live("npx wrangler deploy", cwd=worker_dir)
+    deploy_out = run_live("npx wrangler deploy", cwd=worker_dir)
     print(green("  ✓ Worker 部署完成"))
+
+    # 从 wrangler deploy 输出中提取 workers.dev URL
+    import re
+    worker_url = None
+    for line in deploy_out.split("\n"):
+        m = re.search(r"https://([\w-]+\.workers\.dev)", line)
+        if m:
+            worker_url = f"https://{m.group(1)}"
+            break
+    if not worker_url:
+        # 回退：尝试 API 获取 subdomain
+        try:
+            sd = cf_req("GET", f"/accounts/{account_id}/workers/subdomain")
+            sd_name = sd.get("name", "")
+            if sd_name:
+                worker_url = f"https://{worker_name}.{sd_name}.workers.dev"
+        except:
+            pass
+    if not worker_url:
+        raise Exception("无法确定 Worker URL，请检查 wrangler deploy 输出")
 
     print("  设置 Worker Secrets...")
     worker_secrets = {
@@ -345,20 +365,11 @@ def main():
     print()
     print(bold("── 第五步：构建并部署 Pages ──"))
 
-    # 确定 API 地址
+    # 确定 API 地址（worker_url 已从 wrangler deploy 输出中提取）
     if custom_domain:
         api_base = f"https://{custom_domain}/api"
     else:
-        workers_dev = ""
-        try:
-            sd = cf_req("GET", f"/accounts/{account_id}/workers/subdomain")
-            workers_dev = sd.get("name", "")
-        except:
-            pass
-        if workers_dev:
-            api_base = f"https://{worker_name}.{workers_dev}.workers.dev/api"
-        else:
-            api_base = f"https://{worker_name}.workers.dev/api"
+        api_base = f"{worker_url}/api"
     print(f"  API Base = {api_base}")
 
     print("  构建 Frontend...")
