@@ -168,7 +168,7 @@ export function FileManager() {
       chunkBlobs[i] = await fetchChunk(i);
       downloadedBytes += chunkBlobs[i].size;
       if (onChunk) onChunk(i + 1, chunks.length, downloadedBytes, item.size);
-      if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 200));
+      if (i < chunks.length - 1) await new Promise(r => setTimeout(r, 50));
     }
     const blob = new Blob(chunkBlobs);
     // Final guard: assembled size must match the file metadata.
@@ -223,7 +223,7 @@ export function FileManager() {
         setMultiProgress(p => ({ ...p, fileName: `${f.name} — ${err instanceof Error ? err.message : "下载失败"}` }));
         await new Promise(r => setTimeout(r, 800));
       }
-      if (i < items.length - 1) await new Promise(r => setTimeout(r, 200));
+      if (i < items.length - 1) await new Promise(r => setTimeout(r, 50));
     }
     setMultiProgress({ current: items.length, total: items.length, fileName: "打包中...", percent: 100 });
     try {
