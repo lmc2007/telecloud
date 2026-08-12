@@ -1,6 +1,6 @@
-// API base URL — configurable via VITE_API_BASE env var in Cloudflare Pages dashboard.
-// Default: <your-domain.com> (custom domain, same origin).
-const API_BASE = import.meta.env.VITE_API_BASE || "https://<your-domain.com>/api";
+// API base URL — configurable via VITE_API_BASE env var.
+// Default: same-origin /api (works when Pages and Worker share the same domain).
+const API_BASE = import.meta.env.VITE_API_BASE || (typeof window !== "undefined" ? window.location.origin + "/api" : "/api");
 
 export { API_BASE };
 

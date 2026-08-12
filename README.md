@@ -197,10 +197,15 @@ cd telecloud
 cp frontend/.env.example frontend/.env
 ```
 
-编辑 `frontend/.env`，把 `<your-domain.com>` 换成你的 Worker 域名或自定义域名：
+编辑 `frontend/.env`，**必须把域名替换为你自己的**（直接复制占位符会导致请求失败）：
+> ⚠️ 不要保留 `<>` 或 `你的域名` 这些占位符，必须换成真实域名。
 
 ```
-VITE_API_BASE=https://你的域名/api
+# 示例：如果你的 Worker 域名是 tgdrive-api.xxx.workers.dev
+VITE_API_BASE=https://tgdrive-api.你的用户名.workers.dev/api
+
+# 示例：如果配置了自定义域名
+VITE_API_BASE=https://drive.example.com/api
 ```
 
 **Worker 配置文件 `worker/wrangler.jsonc`（可选）：**
@@ -356,7 +361,7 @@ npm run build   # 生成 dist/ 目录
 
 | 变量名 | 值 |
 |--------|-----|
-| `VITE_API_BASE` | `https://<你的Worker域名>/api` |
+| `VITE_API_BASE` | `https://你的Worker域名/api`（⚠️ 必须替换为真实域名，不要保留 `<>`） |
 
 > Worker 域名在 Worker 详情页顶部，格式为 `tgdrive-api.你的用户名.workers.dev`。如果后面配置了自定义域名，这里填自定义域名。
 
@@ -387,7 +392,7 @@ npm run build   # 生成 dist/ 目录
 4. 去 Telegram 群组中确认能看到 Bot 发了一条文件消息
 5. 回到网页刷新，确认文件出现在列表中
 
-> ⚠️ **首次部署后**，访问 `https://<你的Worker域名>/api/admin/login` 用 Admin 密码登录，然后访问 `/api/admin/migrate` 完成 KV→D1 数据回填（之后无需再操作）。
+> ⚠️ **首次部署后**，访问 `https://你的Worker域名/api/admin/login` 用 Admin 密码登录，然后访问 `/api/admin/migrate` 完成 KV→D1 数据回填（之后无需再操作）。
 
 🎉 至此部署完成！享受无限容量的 Telegram 云盘吧。
 
