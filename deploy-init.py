@@ -290,6 +290,7 @@ def main():
         "name": worker_name,
         "main": "dist/worker.js",
         "compatibility_date": "2025-07-01",
+        "account_id": account_id,
         "observability": {
             "enabled": False,
             "head_sampling_rate": 1,
