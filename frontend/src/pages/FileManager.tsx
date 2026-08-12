@@ -562,6 +562,7 @@ export function FileManager() {
               </div>
               <div className="w-px h-5" style={{ background: 'var(--border)' }} />
               <ThemeToggle />
+              <button onClick={() => setShowSettings(true)} className="btn-ghost" title="设置"><Settings className="w-[18px] h-[18px]" /></button>
               {currentPage !== "trash" && currentPage !== "shares" && (
                 <>
                   <button onClick={() => setShowNewFolder(true)} className="btn-ghost" title="新建文件夹"><FolderPlus className="w-[18px] h-[18px]" /></button>
