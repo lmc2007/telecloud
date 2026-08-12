@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { Share2 } from "lucide-react";
 import type { FileItem } from "../stores/fileStore";
@@ -52,18 +51,19 @@ export function ShareModal({ files, onClose }: { files: FileItem[]; onClose: () 
   };
 
   const fileNames = files.map(f => f.name).join("、");
-  const title = isFolder ? (isMultiFolder ? "分享文件夹" : "分享文件夹") : "分享文件";
+  const title = isFolder ? "分享文件夹" : "分享文件";
   const subtitle = isMultiFolder
     ? `${files.length} 个文件夹: ${fileNames}`
     : isFolder
     ? files[0].name
     : files.length === 1 ? files[0].name : `${files.length} 个文件: ${fileNames}`;
 
-  return files.length > 0
-    ? createPortal(
-        <motion.div key="share-modal-overlay" className="modal-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="absolute inset-0" onClick={onClose} />
-          <motion.div key="share-modal-panel" className="modal-panel w-full max-w-sm mx-4 p-6" initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.2 }}>
+  if (files.length === 0) return null;
+
+  return (
+    <motion.div key="share-modal-overlay" className="modal-overlay" style={{ zIndex: 9999 }} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <div className="absolute inset-0" onClick={onClose} />
+      <motion.div key="share-modal-panel" className="modal-panel w-full max-w-sm mx-4 p-6" initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.2 }}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-[15px] font-semibold text-[var(--text-primary)]">{title}</h3>
               <button onClick={onClose} className="btn-ghost text-sm">✕</button>
@@ -104,8 +104,6 @@ export function ShareModal({ files, onClose }: { files: FileItem[]; onClose: () 
               </div>
             )}
           </motion.div>
-        </motion.div>,
-        document.body
-      )
-    : null;
+        </motion.div>
+  );
 }

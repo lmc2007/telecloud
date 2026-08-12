@@ -304,7 +304,8 @@ export function FileManager() {
   };
 
   const handleMoveSelected = () => {
-    const items = filteredFiles.filter(f => selected.has(f.id));
+    if (selected.size === 0) return;
+    const items = files.filter(f => selected.has(f.id));
     if (items.length > 0) { setMoveFiles(items); setCtx(null); }
   };
 
