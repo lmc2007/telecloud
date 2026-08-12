@@ -265,30 +265,7 @@ def main():
         if not d1_id:
             raise
 
-    print("  执行数据库迁移（跳过已存在的表）...")
-    for migration in ["0001_init.sql", "0002_admin_index.sql"]:
-        mpath = os.path.join(worker_dir, "migrations", migration)
-        with open(mpath, "r", encoding="utf-8") as f:
-            sql = f.read()
-        statements = [s.strip() for s in sql.split(";")
-                      if s.strip() and not s.strip().startswith("--")]
-        for stmt in statements:
-            try:
-                cf_req("POST", f"/accounts/{account_id}/d1/database/{d1_id}/query",
-                       {"sql": stmt + ";"})
-            except Exception as e:
-                if "already exists" in str(e):
-                    pass  # 表/索引已存在，跳过
-                else:
-                    raise
-    print(green("  ✓ 迁移完成"))
-
-    # ─── Step 4: Worker ───
-
-    print()
-    print(bold("── 第四步：构建并部署 Worker ──"))
-
-    # 写入 wrangler.jsonc
+    # 先写入 wrangler.jsonc 以便使用 wrangler d1 execute
     wrangler_config = {
         "name": worker_name,
         "main": "dist/worker.js",
@@ -315,6 +292,19 @@ def main():
     with open(wpath, "w", encoding="utf-8") as f:
         json.dump(wrangler_config, f, indent=2)
     print(f"  ✓ 已写入 worker/wrangler.jsonc")
+
+    print("  执行数据库迁移...")
+    env_extra = {"CLOUDFLARE_API_TOKEN": api_token, "CLOUDFLARE_ACCOUNT_ID": account_id}
+    for migration in ["0001_init.sql", "0002_admin_index.sql"]:
+        mpath = os.path.join(worker_dir, "migrations", migration)
+        run_live(f"npx wrangler d1 execute {worker_name}-db --remote --file={mpath}",
+                 cwd=worker_dir, env=env_extra)
+    print(green("  ✓ 迁移完成"))
+
+    # ─── Step 4: Worker ───
+
+    print()
+    print(bold("── 第四步：构建并部署 Worker ──"))
 
     print("  构建 Worker...")
     run_live("npx esbuild src/index.ts --bundle --format=esm --target=es2022 --outfile=dist/worker.js --platform=browser --external:cloudflare:workers",
@@ -356,7 +346,6 @@ def main():
         "ADMIN_PASSWORD": admin_pw,
         "WEBHOOK_SECRET": webhook_secret,
     }
-    env_extra = {"CLOUDFLARE_API_TOKEN": api_token, "CLOUDFLARE_ACCOUNT_ID": account_id}
     for name, value in worker_secrets.items():
         run_silent(f"npx wrangler secret put {name}", cwd=worker_dir, env=env_extra, stdin=value + "\n")
         print(f"    ✓ {name}")
