@@ -116,6 +116,29 @@ Workflow 自动执行：
 
 也可本地运行 `deploy.bat` 一键部署（需在项目根目录 `.env` 中配置，详见 `.env.example`）。
 
+### 🪄 首次部署：一键脚本（推荐）
+
+如果你从未部署过，用此脚本可以一次搞定所有步骤，无需手动操作 Dashboard：
+
+```bash
+python deploy-init.py
+```
+
+脚本会交互式询问：
+
+| 步骤 | 内容 |
+|------|------|
+| 询问配置 | Cloudflare API Token、Telegram Bot Token、群组 Chat ID |
+| 项目名称 | Worker / Pages 项目名（直接回车用默认值） |
+| 自定义域名 | 可选，跳过则使用 `*.workers.dev` 免费域名 |
+| 自动生成 | `JWT_SECRET`、`JWT_REFRESH_SECRET`、`ADMIN_PASSWORD`、`WEBHOOK_SECRET` |
+| 自动创建 | KV 命名空间、D1 数据库、执行迁移 |
+| 自动部署 | 构建 + 部署 Worker 和 Pages |
+| 自动配置 | Worker Secrets、KV/D1 绑定、Pages 环境变量 |
+| 域名路由 | 如提供自定义域名，自动绑定 Pages 域名 + Worker Route |
+
+运行完成后直接访问站点即可使用，密钥自动保存到 `deploy-secrets.txt`。
+
 ## 🚀 手把手部署教程
 
 > **预计耗时**：15~30 分钟 ｜ **费用**：完全免费（Telegram 免费 + Cloudflare 免费额度足够日常使用）
