@@ -42,17 +42,24 @@
 
 项目已配置 GitHub Actions，`git push main` 自动触发部署。
 
-> ⚠️ **首次使用前必须配置**，否则 Workflow 会失败：
+> ⚠️ **首次使用前必须配置 Cloudflare API Token**，否则 Workflow 会失败：
 
-### 第一步：设置 GitHub Secret
+### 第一步：创建 Cloudflare API Token
 
-1. 打开 https://github.com/lmc2007/telecloud/settings/secrets/actions
+1. 打开 https://dash.cloudflare.com/profile/api-tokens
+2. 点击 **创建令牌** → 使用 "编辑 Cloudflare Workers" 模板
+3. 账户资源：选择你的账户，权限默认即可
+4. 创建后**立即复制 Token**（只显示一次）
+
+### 第二步：添加到 GitHub Secrets
+
+1. 打开你的 GitHub 仓库 → Settings → Secrets and variables → Actions
 2. 点击 **New repository secret**
 3. Name：`CLOUDFLARE_API_TOKEN`
-4. Secret：你的 Cloudflare API Token
+4. Secret：粘贴上一步复制的 Token
 5. 点击 **Add secret**
 
-### 第二步：推送即部署
+### 第三步：推送即部署
 
 ```bash
 git push main
