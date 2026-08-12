@@ -401,6 +401,13 @@ export function ShareAccessPage() {
               )}
             </div>
           </>
+        ) : isFolderShare ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="card p-8 text-center">
+              <Folder className="w-10 h-10 text-[var(--text-disabled)] mx-auto mb-3" />
+              <p className="text-[var(--text-tertiary)]">该文件夹为空</p>
+            </div>
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="card p-8 text-center">
@@ -410,7 +417,7 @@ export function ShareAccessPage() {
           </div>
         )}
 
-        {/* Context menu */}
+        {/* Context menu — mobile */}
         <AnimatePresence>
           {ctx && (
             <div className="fixed inset-0 z-[99]" onClick={() => setCtx(null)}>
@@ -568,6 +575,13 @@ export function ShareAccessPage() {
             </span>
           </div>
         </>
+      ) : isFolderShare ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="card p-8 text-center">
+            <Folder className="w-10 h-10 text-[var(--text-disabled)] mx-auto mb-3" />
+            <p className="text-[var(--text-tertiary)]">该文件夹为空</p>
+          </div>
+        </div>
       ) : (
         <div className="flex-1 flex items-center justify-center">
           <div className="card p-8 text-center">
@@ -577,7 +591,7 @@ export function ShareAccessPage() {
         </div>
       )}
 
-      {/* Context menu */}
+      {/* Context menu — desktop */}
       <AnimatePresence>
         {ctx && (
           <div className="fixed inset-0 z-[99]" onClick={() => setCtx(null)}>
