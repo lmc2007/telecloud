@@ -94,17 +94,27 @@ npx wrangler secret put WEBHOOK_SECRET
 3. 打开你的 GitHub 仓库 → Settings → Secrets and variables → Actions → **New repository secret**
 4. Name：`CLOUDFLARE_API_TOKEN`，值：粘贴 Token
 
-### 第三步：推送即部署
+### 第三步：配置项目名称（可选）
+
+部署前可自定义 Worker 和 Pages 的项目名称：
+
+- **Pages 项目名**：GitHub 仓库 → Settings → Secrets and variables → Actions → **Variables** 标签 → **New repository variable**
+  - Name：`PAGES_NAME`，Value：你的 Pages 项目名（不设则默认 `tgdrive-pages`）
+- **API 地址**：同上添加 Variable
+  - Name：`VITE_API_BASE`，Value：`https://你的域名/api`
+- **Worker 项目名**：编辑 `worker/wrangler.jsonc`，修改 `"name"` 字段
+
+### 第四步：推送即部署
 
 ```bash
 git push main
 ```
 
 Workflow 自动执行：
-1. 构建并部署 Worker → `tgdrive`
-2. 构建并部署前端 → `muleng-frontend`
+1. 构建并部署 Worker（项目名取自 `worker/wrangler.jsonc`）
+2. 构建并部署前端 Pages（项目名取自 `PAGES_NAME` 变量，不存在会自动创建）
 
-也可本地运行 `deploy.bat` 一键部署（需在项目根目录 `.env` 中设置 `CLOUDFLARE_API_TOKEN`）。
+也可本地运行 `deploy.bat` 一键部署（需在项目根目录 `.env` 中配置，详见 `.env.example`）。
 
 ## 🚀 手把手部署教程
 
