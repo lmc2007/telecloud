@@ -325,25 +325,28 @@ def main():
     deploy_out = run_live("npx wrangler deploy", cwd=worker_dir)
     print(green("  ✓ Worker 部署完成"))
 
-    # 从 wrangler deploy 输出中提取 workers.dev URL
+    # 从 wrangler deploy 输出中提取 workers.dev URL（先剥离 ANSI 颜色码）
     import re
+    clean_out = re.sub(r'\x1b\[[0-9;]*m', '', deploy_out)
     worker_url = None
-    for line in deploy_out.split("\n"):
+    for line in clean_out.split("\n"):
         m = re.search(r"https://([\w-]+\.workers\.dev)", line)
         if m:
             worker_url = f"https://{m.group(1)}"
             break
     if not worker_url:
         # 回退：尝试 API 获取 subdomain
+        print("  从 API 获取 workers.dev 子域名...")
         try:
             sd = cf_req("GET", f"/accounts/{account_id}/workers/subdomain")
             sd_name = sd.get("name", "")
             if sd_name:
                 worker_url = f"https://{worker_name}.{sd_name}.workers.dev"
-        except:
-            pass
+                print(f"  ✓ 子域名: {sd_name}")
+        except Exception as e:
+            print(f"  ⚠ API 获取子域名失败: {e}")
     if not worker_url:
-        raise Exception("无法确定 Worker URL，请检查 wrangler deploy 输出")
+        raise Exception(f"无法确定 Worker URL\nwrangler 输出:\n{clean_out[-500:]}")
 
     print("  设置 Worker Secrets...")
     worker_secrets = {
