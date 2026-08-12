@@ -90,9 +90,10 @@ npx wrangler secret put WEBHOOK_SECRET
 ### 第二步：设置 GitHub Secret（仅首次）
 
 1. 打开 https://dash.cloudflare.com/profile/api-tokens → **创建令牌** → 使用 "编辑 Cloudflare Workers" 模板
-2. 创建后复制 Token
-3. 打开你的 GitHub 仓库 → Settings → Secrets and variables → Actions → **New repository secret**
-4. Name：`CLOUDFLARE_API_TOKEN`，值：粘贴 Token
+2. **重要**：模板默认不含 D1 权限。在权限列表底部添加：**Account** → **D1** → **Edit**
+3. 创建后复制 Token
+4. 打开你的 GitHub 仓库 → Settings → Secrets and variables → Actions → **New repository secret**
+5. Name：`CLOUDFLARE_API_TOKEN`，值：粘贴 Token
 
 ### 第三步：配置项目名称（可选）
 
