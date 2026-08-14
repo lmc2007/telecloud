@@ -20,7 +20,7 @@ cd frontend && npm run build   # tsc --noEmit && vite build
 
 ## 修改后
 
-**修改代码后，必须在回复末尾询问用户是否推送到 GitHub，不得擅自推送。**
+**修改代码后，必须在回复末尾询问用户是否提交。经确认后，将改动提交到对应的功能分支（不在 `main` 上直接提交）、推送到远程，并创建 Pull Request 合并到 `main`。不得擅自推送或合并。**
 
 ## 前端改动影响面
 
@@ -65,7 +65,7 @@ cd frontend && npm run build   # tsc --noEmit && vite build
 5. 构建验证（worker + frontend 都通过）
 6. 更新 `DEVDOC.md`（API 路由表、架构说明）
 7. 更新 `README.md`（如果是用户可见功能）
-8. **询问用户是否推送到 GitHub**（不要擅自推送）
+8. **询问用户是否提交**：确认后提交到功能分支、推送远程并创建 Pull Request（不要擅自推送或合并到 `main`）
 
 <!-- >>> aimax:reasonix >>> -->
 # AI MAX Reasonix 集成
@@ -157,6 +157,31 @@ const validated = schema.parse(input)
 
 # Git 工作流
 
+## 核心原则
+
+- 不在 `main` 上直接提交，一切改动通过**功能分支 + Pull Request** 合并。
+- 一个任务（feature / fix / chore）对应一个功能分支和一个 PR。
+- 提交前先同步远程主分支，减少合并冲突。
+
+## 分支管理
+
+1. 从最新主分支切出功能分支：
+   ```bash
+   git checkout main
+   git pull --ff-only origin main
+   git checkout -b <type>/<short-description>
+   ```
+2. 分支命名规范（类型与提交类型一致）：
+   - `feat/<描述>`：新功能
+   - `fix/<描述>`：缺陷修复
+   - `refactor/<描述>`：重构
+   - `docs/<描述>`：文档
+   - `chore/<描述>`：杂项维护
+   - `test/<描述>`：测试
+   - `perf/<描述>`：性能优化
+   - `ci/<描述>`：CI/CD
+3. 分支名用短横线分隔的小写英文，如 `feat/share-download-progress`。
+
 ## 提交信息格式
 
 ```
@@ -167,14 +192,29 @@ const validated = schema.parse(input)
 
 类型: feat, fix, refactor, docs, test, chore, perf, ci
 
+## 提交与推送
+
+1. 将改动提交到当前功能分支（不直接提交到 `main`）：
+   ```bash
+   git add <相关文件>
+   git commit -m "<type>: <description>"
+   ```
+2. 推送到远程同名分支：
+   ```bash
+   git push -u origin <当前分支名>
+   ```
+
 ## Pull Request 工作流
 
-创建 PR 时：
-1. 分析完整的提交历史（不仅仅是最新的提交）
-2. 使用 `git diff [base-branch]...HEAD` 查看所有变更
-3. 撰写全面的 PR 摘要
-4. 包含带 TODO 的测试计划
-5. 如果是新分支，推送时使用 `-u` 标志
+1. 推送后创建 Pull Request，目标分支为 `main`。
+2. 创建 PR 前：
+   1. 分析完整提交历史（不仅仅是最新的提交）
+   2. 使用 `git diff main...HEAD` 查看所有变更
+   3. 撰写全面的 PR 摘要
+   4. 包含带 TODO 的测试计划
+3. PR 标题遵循 `<type>: <description>` 约定。
+4. 合并前需通过：构建验证（worker + frontend 均通过）+ 代码审查。
+5. 合并后删除远程功能分支。
 
 ## 功能实现工作流
 
@@ -195,8 +235,9 @@ const validated = schema.parse(input)
    - 解决关键和高优先级问题
    - 尽可能修复中等优先级问题
 
-4. **提交和推送**
-   - 详细的提交信息
+4. **提交与推送**
+   - 提交到功能分支（不在 `main` 上直接提交）
+   - 推送远程同名分支并创建 Pull Request
    - 遵循约定式提交格式
 
 ## 输出规则
